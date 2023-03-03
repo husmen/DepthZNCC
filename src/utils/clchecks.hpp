@@ -9,5 +9,5 @@
 using namespace std;
 
 string get_cl_err(cl_int errCode);
-int cl_hello_world();
-int cl_vec_add();
+int clHelloWorld();
+int clVecAdd();

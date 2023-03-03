@@ -4,7 +4,7 @@ project(depth_zncc VERSION 0.1.0)
 include(CTest)
 enable_testing()
 
-set(SOURCES src/main.cpp src/utils/clchecks.cpp src/utils/datatools.cpp)
+set(SOURCES src/main.cpp src/utils/clchecks.cpp src/utils/datatools.cpp src/zncc/zncc.cpp)
 add_executable(depth_zncc src/main.cpp ${SOURCES})
 
 include("D:/ws/vcpkg/scripts/buildsystems/vcpkg.cmake")

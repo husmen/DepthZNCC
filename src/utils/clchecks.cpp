@@ -20,7 +20,7 @@ string get_cl_err(cl_int errCode)
     return os.str();
 }
 
-int cl_hello_world()
+int clHelloWorld()
 {
         cout << "HelloWorld! (" <<  CL_SUCCESS << ")" << endl;
 
@@ -40,7 +40,7 @@ int cl_hello_world()
     return 0;
 }
 
-int cl_vec_add()
+int clVecAdd()
 {
     // Heterogeneous computing with OpenCL
 
