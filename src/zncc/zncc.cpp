@@ -214,7 +214,7 @@ void zncc_opencl(const vector<unsigned char> &leftImg, const vector<unsigned cha
     try
     {
         // Query for platforms
-        vector <cl::Platform> platforms;
+        vector<cl::Platform> platforms;
         cl::Platform::get(&platforms);
 
         // Get a list of devices on this platform
@@ -258,10 +258,9 @@ void zncc_opencl(const vector<unsigned char> &leftImg, const vector<unsigned cha
         zncc_kernel.setArg(2, disparityImgBuffer);
         zncc_kernel.setArg(3, width);
         zncc_kernel.setArg(4, height);
-        zncc_kernel.setArg(5, WIN_SIZE);
 
         // Execute the kernel
-        cl::NDRange global(width, height);
+        cl::NDRange global(width * height);
         // cl::NDRange local(WIN_SIZE * WIN_SIZE);
         queue.enqueueNDRangeKernel(zncc_kernel, cl::NullRange, global);
         // queue.finish();

@@ -20,7 +20,7 @@ OpenCL implementation of Zero-mean Normalized Cross Correlation (ZNCC) - Project
 | Single-Threaded | 348 | - | - |
 | Multi-Threaded | 50.7 | - | - |
 | OpenMP | 51.8 | - | - |
-| OpenCL | - | - | - |
+| OpenCL | 6.0 | - | - |
 | OpenCL Optimized | - | - | - |
 | CUDA | - | - | - |
 [Benchmark results as runtime in seconds]
@@ -43,7 +43,7 @@ Max work group size: 1024
 - [x] ZNCC single-threaded.
 - [X] ZNCC multi-threaded.
 - [X] ZNCC OpenMP.
-- [ ] ZNCC OpenCL.
+- [X] ZNCC OpenCL.
 - [ ] ZNCC OpenCL optimization.
 - [X] Benchmarking all implementations.
 - [ ] Advanced profiling (Orbit?)
@@ -67,4 +67,5 @@ Max work group size: 1024
 - **Day 4**: Initial ZNCC implementation, naive and single threaded on CPU.
 - **Day 5**: C++ Multithreading and OpenMP implementations.
 - **Day 6**: Learning more about OpenCL.
-- **Day 7**:
+- **Day 7**: Initial OpenCL implementation of ZNCC, mostly a copy paste of the C++ code with minor editing and a kernel wrapper.
+
