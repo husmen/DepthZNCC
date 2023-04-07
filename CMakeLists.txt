@@ -1,10 +1,10 @@
-cmake_minimum_required(VERSION 3.7)
+cmake_minimum_required(VERSION 3.9)
 project(depth_zncc VERSION 0.1.0)
 
 include(CTest)
 enable_testing()
 
-set(SOURCES src/main.cpp src/utils/clchecks.cpp src/utils/datatools.cpp src/zncc/zncc.cpp)
+set(SOURCES src/main.cpp src/utils/clchecks.cpp src/utils/datatools.cpp src/utils/ScopeBasedTimer.cpp src/zncc/zncc.cpp)
 add_executable(depth_zncc src/main.cpp ${SOURCES})
 
 include("D:/ws/vcpkg/scripts/buildsystems/vcpkg.cmake")
@@ -13,15 +13,24 @@ include("D:/ws/vcpkg/scripts/buildsystems/vcpkg.cmake")
 find_package(OpenCL REQUIRED)
 target_link_libraries(depth_zncc OpenCL::OpenCL)
 
+# OpenMP
+find_package(OpenMP)
+if(OpenMP_CXX_FOUND)
+    target_link_libraries(depth_zncc OpenMP::OpenMP_CXX)
+endif()
+
 # LodePNG C++ API
 find_package(lodepng REQUIRED)
 target_link_libraries(depth_zncc lodepng)
+
+# Other includes (tqdm, )
+# target_include_directories(depth_zncc PRIVATE "include/")
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED On)
 set(CMAKE_CXX_EXTENSIONS Off)
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /std:c++17")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DCMAKE_C_FLAGS=-fopenmp -DCMAKE_EXE_LINKER_FLAGS=-fopenmp /std:c++17")
 
 set(CMAKE_GENERATOR_PLATFORM x64)
 

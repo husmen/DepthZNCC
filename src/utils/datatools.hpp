@@ -1,3 +1,5 @@
+#pragma once
+
 #include <lodepng.h>
 
 using namespace std;
@@ -23,6 +25,7 @@ tuple<bool, Image> loadImage(string dir, string fname);
 tuple<Image, Image> loadImages(string dir, string fname_0, string fname_1);
 tuple<Image, Image> loadImages(string dir);
 tuple<Image, Image> loadImages();
+tuple<Image, Image> loadImages(int argv, char **argc);
 
 vector<unsigned char> downsample(const vector<unsigned char> &image, int width, int height);
 vector<unsigned char> upsample(const vector<unsigned char> &img, int width, int height);
