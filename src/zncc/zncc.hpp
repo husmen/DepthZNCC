@@ -10,9 +10,7 @@
 #include <mutex>
 #include <map>
 #include <omp.h>
-
-#define __CL_ENABLE_EXCEPTIONS
-#include <CL/cl.hpp>
+#include "../utils/clchecks.hpp"
 
 #define MAX_DISP 32
 #define WIN_SIZE 11

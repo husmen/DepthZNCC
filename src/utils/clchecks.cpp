@@ -6,14 +6,24 @@ string get_cl_err(cl_int errCode)
 
     if (errCode == CL_SUCCESS)
         os << "CL_SUCCESS (" << errCode << ")";
+    else if (errCode == CL_MEM_OBJECT_ALLOCATION_FAILURE)
+        os << "CL_MEM_OBJECT_ALLOCATION_FAILURE (" << errCode << ")";
+    else if (errCode == CL_OUT_OF_RESOURCES)
+        os << "CL_OUT_OF_RESOURCES (" << errCode << ")";
+    else if (errCode == CL_OUT_OF_HOST_MEMORY)
+        os << "CL_OUT_OF_HOST_MEMORY (" << errCode << ")";
     else if (errCode == CL_INVALID_VALUE)
         os << "CL_INVALID_VALUE (" << errCode << ")";
     else if (errCode == CL_OUT_OF_HOST_MEMORY)
         os << "CL_OUT_OF_HOST_MEMORY (" << errCode << ")";
     else if (errCode == CL_PLATFORM_NOT_FOUND_KHR)
         os << "CL_PLATFORM_NOT_FOUND_KHR (" << errCode << ")";
+    else if (errCode == CL_INVALID_COMMAND_QUEUE)
+        os << "CL_INVALID_COMMAND_QUEUE (" << errCode << ")";
     else if (errCode == CL_INVALID_KERNEL_NAME)
         os << "CL_INVALID_KERNEL_NAME (" << errCode << ")";
+    else if (errCode == CL_INVALID_WORK_GROUP_SIZE)
+        os << "CL_INVALID_WORK_GROUP_SIZE (" << errCode << ")";
     else
         os << "UNKNOWN_ERROR (" << errCode << ")";
 
@@ -52,12 +62,16 @@ void print_device_info(cl_device_id device)
     size_t max_work_group_size;
     clGetDeviceInfo(device, CL_DEVICE_MAX_WORK_GROUP_SIZE, sizeof(max_work_group_size), &max_work_group_size, NULL);
 
+    size_t kernel_work_group_size;
+    clGetDeviceInfo(device, CL_KERNEL_WORK_GROUP_SIZE , sizeof(kernel_work_group_size), &kernel_work_group_size, NULL);
+
     // Print the information to the console or a log file
     cout << "Device summary:" << endl;
     cout << "Name: " << device_name << endl;
     cout << "Max compute units: " << max_compute_units << endl;
     cout << "Global memory size (bytes): " << (unsigned long long)global_mem_size << endl;
-    cout << "Max work group size: " << max_work_group_size << endl << endl;
+    cout << "Max work group size: " << max_work_group_size << endl;
+    cout << "Kernel work group size: " << kernel_work_group_size << endl << endl;
 }
 
 int clHelloWorld()

@@ -14,12 +14,13 @@ string ZnccMethodToStringHelper(ZnccMethod method)
 
 double calculateMean(int x, int y, int d, const vector<unsigned char> &img, int width, int height)
 {
+    const int halfWinSize = WIN_SIZE / 2;
     double sum = 0.0;
     int count = 0;
 
-    for (int j = -WIN_SIZE / 2; j <= WIN_SIZE / 2; j++)
+    for (int j = -halfWinSize; j <= halfWinSize; j++)
     {
-        for (int i = -WIN_SIZE / 2; i <= WIN_SIZE / 2; i++)
+        for (int i = -halfWinSize; i <= halfWinSize; i++)
         {
             int xj = x + i;
             int yj = y + j;
@@ -40,13 +41,14 @@ double calculateMean(int x, int y, int d, const vector<unsigned char> &img, int 
 
 double calculateZncc(int x, int y, int d, double mean1, double mean2, const vector<unsigned char> &img1, const vector<unsigned char> &img2, int width, int height)
 {
+    const int halfWinSize = WIN_SIZE / 2;
     double num = 0.0;
     double denom1 = 0.0;
     double denom2 = 0.0;
 
-    for (int j = -WIN_SIZE / 2; j <= WIN_SIZE / 2; j++)
+    for (int j = -halfWinSize; j <= halfWinSize; j++)
     {
-        for (int i = -WIN_SIZE / 2; i <= WIN_SIZE / 2; i++)
+        for (int i = -halfWinSize; i <= halfWinSize; i++)
         {
             int xj1 = x + i;
             int xj2 = x + i - d;
@@ -209,31 +211,69 @@ void zncc_openmp(const vector<unsigned char> &leftImg, const vector<unsigned cha
 
 void zncc_opencl(const vector<unsigned char> &leftImg, const vector<unsigned char> &rightImg, vector<unsigned char> &disparityImg, int width, int height)
 {
-    // Query for platforms
-    vector <cl::Platform> platforms;
-    cl::Platform::get(&platforms);
+    try
+    {
+        // Query for platforms
+        vector <cl::Platform> platforms;
+        cl::Platform::get(&platforms);
 
-    // Get a list of devices on this platform
-    vector<cl::Device> devices;
-    platforms[0].getDevices(CL_DEVICE_TYPE_ALL, &devices);
+        // Get a list of devices on this platform
+        vector<cl::Device> devices;
+        platforms[0].getDevices(CL_DEVICE_TYPE_ALL, &devices);
 
-    // Create a context for the devices
-    cl::Context context(devices);
+        // Create a context for the devices
+        cl::Context context(devices);
 
-    // Create a command−queue for the first device
-    cl::CommandQueue queue = cl::CommandQueue(context, devices[0]);
+        // Create a command−queue for the first device
+        cl::CommandQueue queue = cl::CommandQueue(context, devices[0]);
 
-    // Create OpenCL memory buffers
-    size_t inputSize = sizeof(unsigned char) * leftImg.size();
-    cl::Buffer leftImgBuffer = cl::Buffer(context, CL_MEM_READ_ONLY, inputSize, NULL, NULL);
-    cl::Buffer rightImgBuffer = cl::Buffer(context, CL_MEM_READ_ONLY, inputSize, NULL, NULL);
-    cl::Buffer disparityImgBuffer = cl::Buffer(context, CL_MEM_WRITE_ONLY, inputSize, NULL, NULL);
+        // Create OpenCL memory buffers
+        size_t inputSize = sizeof(unsigned char) * leftImg.size();
+        cl::Buffer leftImgBuffer = cl::Buffer(context, CL_MEM_READ_ONLY, inputSize, NULL, NULL);
+        cl::Buffer rightImgBuffer = cl::Buffer(context, CL_MEM_READ_ONLY, inputSize, NULL, NULL);
+        cl::Buffer disparityImgBuffer = cl::Buffer(context, CL_MEM_WRITE_ONLY, inputSize, NULL, NULL);
 
-    // Copy the input data to the input buffers
-    queue.enqueueWriteBuffer(leftImgBuffer, CL_TRUE, 0, inputSize, &leftImg);
-    queue.enqueueWriteBuffer(rightImgBuffer, CL_TRUE, 0, inputSize, &rightImg);
+        // Copy the input data to the input buffers
+        queue.enqueueWriteBuffer(leftImgBuffer, CL_TRUE, 0, inputSize, &leftImg[0]);
+        queue.enqueueWriteBuffer(rightImgBuffer, CL_TRUE, 0, inputSize, &rightImg[0]);
 
-    // TODO
+        // Read the program source
+        ifstream sourceFile("kernels/zncc_kernels.cl");
+        string sourceCode(istreambuf_iterator<char>(sourceFile), (istreambuf_iterator<char>()));
+        cl::Program::Sources source(1, make_pair(sourceCode.c_str(), sourceCode.length() + 1));
+
+        // Create the program from the source code
+        cl::Program program = cl::Program(context, source);
+
+        // Build the program for the devices
+        auto err = program.build(devices);
+        cout << get_cl_err(err) << endl;
+
+        // Create the kernel
+        cl::Kernel zncc_kernel(program, "zncc_kernel");
+
+        // Set the kernel arguments
+        zncc_kernel.setArg(0, leftImgBuffer);
+        zncc_kernel.setArg(1, rightImgBuffer);
+        zncc_kernel.setArg(2, disparityImgBuffer);
+        zncc_kernel.setArg(3, width);
+        zncc_kernel.setArg(4, height);
+        zncc_kernel.setArg(5, WIN_SIZE);
+
+        // Execute the kernel
+        cl::NDRange global(width, height);
+        // cl::NDRange local(WIN_SIZE * WIN_SIZE);
+        queue.enqueueNDRangeKernel(zncc_kernel, cl::NullRange, global);
+        // queue.finish();
+
+        // Copy the output data back to the host
+        // unsigned char *tmpDisparity;
+        queue.enqueueReadBuffer(disparityImgBuffer, CL_TRUE, 0, inputSize, &disparityImg[0]);
+    }
+    catch (cl::Error error)
+    {
+        cout << error.what() << ": " << get_cl_err(error.err()) << endl;
+    }
 }
 
 void zncc(const vector<unsigned char> &leftImg, const vector<unsigned char> &rightImg, vector<unsigned char> &disparityImg, int width, int height, ZnccMethod method)

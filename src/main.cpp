@@ -43,7 +43,7 @@ int main(int argc, char **argv)
           << "\tGray size: " << img_right.dataGray.size() << "\n";
 
      // Run ZNCC
-     for (auto method : {ZnccMethod::MULTI_THREADED, ZnccMethod::OPENMP, ZnccMethod::SINGLE_THREADED})
+     for (auto method : {ZnccMethod::OPENCL, ZnccMethod::MULTI_THREADED, ZnccMethod::OPENMP, ZnccMethod::SINGLE_THREADED})
      {
           Timer timer;
           cout << "Running ZNCC with method " << static_cast<int>(method) << ": " << ZnccMethodToStringHelper(method) << "\n";
