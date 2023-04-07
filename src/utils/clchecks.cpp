@@ -20,6 +20,46 @@ string get_cl_err(cl_int errCode)
     return os.str();
 }
 
+void print_platform_info(cl_platform_id platform)
+{
+    char platform_name[1024];
+    clGetPlatformInfo(platform, CL_PLATFORM_NAME, sizeof(platform_name), &platform_name, NULL);
+
+    char platform_vendor[1024];
+    clGetPlatformInfo(platform, CL_PLATFORM_VENDOR, sizeof(platform_vendor), &platform_vendor, NULL);
+
+    char platform_version[1024];
+    clGetPlatformInfo(platform, CL_PLATFORM_VERSION, sizeof(platform_version), &platform_version, NULL);
+
+    // Print the information to the console or a log file
+    cout << "Platform summary:" << endl;
+    cout << "Name: " << platform_name << endl;
+    cout << "Vendor: " << platform_vendor << endl;
+    cout << "Version: " << platform_version << endl << endl;
+}
+
+void print_device_info(cl_device_id device)
+{
+    char device_name[1024];
+    clGetDeviceInfo(device, CL_DEVICE_NAME, sizeof(device_name), &device_name, NULL);
+
+    cl_uint max_compute_units;
+    clGetDeviceInfo(device, CL_DEVICE_MAX_COMPUTE_UNITS, sizeof(max_compute_units), &max_compute_units, NULL);
+
+    cl_ulong global_mem_size;
+    clGetDeviceInfo(device, CL_DEVICE_GLOBAL_MEM_SIZE, sizeof(global_mem_size), &global_mem_size, NULL);
+
+    size_t max_work_group_size;
+    clGetDeviceInfo(device, CL_DEVICE_MAX_WORK_GROUP_SIZE, sizeof(max_work_group_size), &max_work_group_size, NULL);
+
+    // Print the information to the console or a log file
+    cout << "Device summary:" << endl;
+    cout << "Name: " << device_name << endl;
+    cout << "Max compute units: " << max_compute_units << endl;
+    cout << "Global memory size (bytes): " << (unsigned long long)global_mem_size << endl;
+    cout << "Max work group size: " << max_work_group_size << endl << endl;
+}
+
 int clHelloWorld()
 {
         cout << "HelloWorld! (" <<  CL_SUCCESS << ")" << endl;
@@ -28,9 +68,15 @@ int clHelloWorld()
     {
         cl_uint num_platforms;
         cl_platform_id *platforms = new cl_platform_id[1];
-
         cl_int err = clGetPlatformIDs(1, platforms, &num_platforms);
         cout << get_cl_err(err) << " Got platforms! " << int(num_platforms) << endl;
+        print_platform_info(platforms[0]);
+
+        cl_uint num_devices;
+        cl_device_id *devices = new cl_device_id[1];
+        err = clGetDeviceIDs(platforms[0], CL_DEVICE_TYPE_ALL, 1, devices, &num_devices);
+        cout << get_cl_err(err) << " Got Devices! " << int(num_devices) << endl;
+        print_device_info(devices[0]);
     }
     catch (cl::Error error)
     {

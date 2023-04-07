@@ -207,6 +207,35 @@ void zncc_openmp(const vector<unsigned char> &leftImg, const vector<unsigned cha
     }
 }
 
+void zncc_opencl(const vector<unsigned char> &leftImg, const vector<unsigned char> &rightImg, vector<unsigned char> &disparityImg, int width, int height)
+{
+    // Query for platforms
+    vector <cl::Platform> platforms;
+    cl::Platform::get(&platforms);
+
+    // Get a list of devices on this platform
+    vector<cl::Device> devices;
+    platforms[0].getDevices(CL_DEVICE_TYPE_ALL, &devices);
+
+    // Create a context for the devices
+    cl::Context context(devices);
+
+    // Create a command−queue for the first device
+    cl::CommandQueue queue = cl::CommandQueue(context, devices[0]);
+
+    // Create OpenCL memory buffers
+    size_t inputSize = sizeof(unsigned char) * leftImg.size();
+    cl::Buffer leftImgBuffer = cl::Buffer(context, CL_MEM_READ_ONLY, inputSize, NULL, NULL);
+    cl::Buffer rightImgBuffer = cl::Buffer(context, CL_MEM_READ_ONLY, inputSize, NULL, NULL);
+    cl::Buffer disparityImgBuffer = cl::Buffer(context, CL_MEM_WRITE_ONLY, inputSize, NULL, NULL);
+
+    // Copy the input data to the input buffers
+    queue.enqueueWriteBuffer(leftImgBuffer, CL_TRUE, 0, inputSize, &leftImg);
+    queue.enqueueWriteBuffer(rightImgBuffer, CL_TRUE, 0, inputSize, &rightImg);
+
+    // TODO
+}
+
 void zncc(const vector<unsigned char> &leftImg, const vector<unsigned char> &rightImg, vector<unsigned char> &disparityImg, int width, int height, ZnccMethod method)
 {
     switch(method)
@@ -220,9 +249,9 @@ void zncc(const vector<unsigned char> &leftImg, const vector<unsigned char> &rig
         case ZnccMethod::OPENMP:
             zncc_openmp(leftImg, rightImg, disparityImg, width, height);
             break;
-        // case ZnccMethod::OPENCL:
-        //     zncc_opencl(leftImg, rightImg, disparityImg, width, height);
-        //     break;
+        case ZnccMethod::OPENCL:
+            zncc_opencl(leftImg, rightImg, disparityImg, width, height);
+            break;
     }
     
 }

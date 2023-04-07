@@ -25,6 +25,19 @@ OpenCL implementation of Zero-mean Normalized Cross Correlation (ZNCC) - Project
 | CUDA | - | - | - |
 [Benchmark results as runtime in seconds]
 
+## openCL Info
+```
+Platform summary:
+Name: NVIDIA CUDA
+Vendor: NVIDIA Corporation
+Version: OpenCL 3.0 CUDA 12.0.94
+
+Device summary:
+Name: NVIDIA GeForce RTX 3050 Laptop GPU
+Max compute units: 16
+Global memory size (bytes): 4294443008
+Max work group size: 1024
+```
 
 ## TODO
 - [x] ZNCC single-threaded.
@@ -52,4 +65,6 @@ OpenCL implementation of Zero-mean Normalized Cross Correlation (ZNCC) - Project
     - PNG image loading with `LodePNG`.
     - Improved the project's structure.
 - **Day 4**: Initial ZNCC implementation, naive and single threaded on CPU.
-- **Day 5**: 
+- **Day 5**: C++ Multithreading and OpenMP implementations.
+- **Day 6**: Learning more about OpenCL.
+- **Day 7**:

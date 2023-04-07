@@ -11,6 +11,9 @@
 #include <map>
 #include <omp.h>
 
+#define __CL_ENABLE_EXCEPTIONS
+#include <CL/cl.hpp>
+
 #define MAX_DISP 32
 #define WIN_SIZE 11
 #define CC_THRESHOLD MAX_DISP / 8
