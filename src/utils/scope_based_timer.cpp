@@ -1,4 +1,4 @@
-#include "ScopeBasedTimer.hpp" 
+#include "scope_based_timer.hpp" 
 
 TimerLog& TimerLog::getInstance()
 {
@@ -22,16 +22,37 @@ Timer::Timer(vector<timer_struct> &log_vec, bool logData): log(&log_vec), LOGGIN
 
 void Timer::stop()
 {
-	endTime = chrono::high_resolution_clock::now();
-
-	auto start = chrono::time_point_cast<chrono::microseconds>(startTime).time_since_epoch().count();
-	auto end = chrono::time_point_cast<chrono::microseconds>(endTime).time_since_epoch().count();
-	auto duration_us = end - start;
+	auto duration_us = getDuration();
 	double duration_ms = duration_us * 0.001;
 	
 	cout << "ID: " << id << " | Duration: " << duration_us << "us (" << duration_ms << "ms)\n";
 	if (LOGGING)
 		logFn(id, duration_us);
+}
+
+long long Timer::getDuration(TimeUnit unit)
+{
+	endTime = chrono::high_resolution_clock::now();
+
+	auto start = chrono::time_point_cast<chrono::microseconds>(startTime).time_since_epoch().count();
+	auto end = chrono::time_point_cast<chrono::microseconds>(endTime).time_since_epoch().count();
+	auto duration_us = end - start;
+
+	switch (unit)
+	{
+	case TimeUnit::us:
+		return duration_us;
+		break;
+	case TimeUnit::ms:
+		return duration_us * 0.001;
+		break;
+	case TimeUnit::s:
+		return duration_us * 0.000001;
+		break;
+	default:
+		return duration_us;
+		break;
+	}
 }
 
 int Timer::generateID()

@@ -2,7 +2,6 @@
 
 #include "utils\clchecks.hpp"
 #include "utils\datatools.hpp"
-#include "utils\ScopeBasedTimer.hpp"
 #include "zncc\zncc.hpp"
 
 namespace fs = filesystem;
@@ -20,6 +19,22 @@ void printHelp(int argc, char **argv)
 
      for (int i = 1; i < argc; ++i)
           cout << argv[i] << "\n";
+}
+
+ZnccResult run_zncc(const Image &leftImg, const Image &rightImg, ZnccParams znccParams)
+{
+     Timer timer;
+     auto methodStr = ZnccMethodToString(znccParams.method);
+     auto leftImg_ = znccParams.resizeFactor != 1 ? downsample(leftImg.dataGray, leftImg.width, leftImg.height, znccParams.resizeFactor) : leftImg.dataGray;
+     auto rightImg_ = znccParams.resizeFactor != 1 ? downsample(rightImg.dataGray, rightImg.width, rightImg.height, znccParams.resizeFactor) : rightImg.dataGray;
+     
+     cout << "Running ZNCC with method " << methodStr << "\n";
+     auto result = zncc_pipeline(leftImg_, rightImg_, znccParams);
+
+     string filename = "./data/disp_zncc_" + methodStr + "_" + to_string(znccParams.maxDisp) + "_" + to_string(znccParams.winSize) + "_" + to_string(znccParams.ccThresh) + "_" + to_string(znccParams.resizeFactor) + ".png";
+     saveImage(filename, result.dispMap, znccParams.width, znccParams.height);
+
+     return result;
 }
 
 int main(int argc, char **argv)
@@ -43,14 +58,22 @@ int main(int argc, char **argv)
           << "\tGray size: " << img_right.dataGray.size() << "\n";
 
      // Run ZNCC
-     for (auto method : {ZnccMethod::OPENCL, ZnccMethod::MULTI_THREADED, ZnccMethod::OPENMP, ZnccMethod::SINGLE_THREADED})
+     for (auto method : {ZnccMethod::OPENCL})//, ZnccMethod::OPENCL, ZnccMethod::MULTI_THREADED, ZnccMethod::OPENMP, ZnccMethod::SINGLE_THREADED
      {
-          Timer timer;
-          cout << "Running ZNCC with method " << static_cast<int>(method) << ": " << ZnccMethodToStringHelper(method) << "\n";
-          vector<unsigned char> dispImg(img_left.width * img_left.height);
-          zncc_pipeline(img_left.dataGray, img_right.dataGray, dispImg, img_left.width, img_left.height, method, false, false);
-          string filename = "./data/disp_zncc_" + ZnccMethodToStringHelper(method) + ".png";
-          saveImage(filename, dispImg, img_left.width, img_left.height);
+          for (auto maxdisp : {32, 64, 128, 256, 512})
+          {
+               for (auto winSize : {17, 33, 65, 129, 257})
+               {
+                    for (auto ccThresh : {8, 16, 32, 64, 128})
+                    {
+                         for (auto resizeFactor : {1, 2, 4})
+                         {
+                              ZnccParams znccParams = {img_left.width / resizeFactor, img_left.height / resizeFactor, maxdisp, winSize, ccThresh, ccThresh / 2, resizeFactor, false, false, false, true, method};
+                              auto result = run_zncc(img_left, img_right, znccParams);
+                         }
+                    }
+               }
+          }
      }
 
      return 0;

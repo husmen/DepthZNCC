@@ -11,6 +11,13 @@ inspiration: https://www.youtube.com/watch?v=YG4jexlSAjc
 #include <chrono>
 using namespace std;
 
+enum class TimeUnit
+{
+	us,
+	ms,
+	s
+};
+
 struct timer_struct {
 	int id;
 	long long duration_us;
@@ -45,6 +52,8 @@ public:
 	Timer(bool logData = true);
 	Timer(vector<timer_struct> &log_vec, bool logData = true);
 	inline ~Timer() {stop();}
+
+	long long getDuration(TimeUnit unit = TimeUnit::us);
 
 private:
 	chrono::time_point<chrono::high_resolution_clock> startTime, endTime;
