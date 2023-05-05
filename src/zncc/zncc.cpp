@@ -230,12 +230,8 @@ ZnccResult zncc_pipeline(const vector<unsigned char> &leftImg, const vector<unsi
 {
     int numPixels = znccParams.width * znccParams.height;
     ZnccResult znccResult;
-    znccResult.dispMap = vector<unsigned char>(numPixels);
     znccResult.dispMapLeft = vector<unsigned char>(numPixels);
     znccResult.dispMapRight = vector<unsigned char>(numPixels);
-    znccResult.dispMapCC = vector<unsigned char>(numPixels);
-    znccResult.dispMapOC = vector<unsigned char>(numPixels);
-    znccResult.dispMapNorm = vector<unsigned char>(numPixels);
 
 
     // Compute the disparity map using ZNCC
@@ -260,10 +256,7 @@ ZnccResult zncc_pipeline(const vector<unsigned char> &leftImg, const vector<unsi
     znccResult.dispMapOC = znccParams.withOcclusionFilling ? fillOcclusion(znccResult.dispMapCC, znccParams) : znccResult.dispMapCC;
 
     // Normalize the disparity map
-    znccResult.dispMapNorm = znccParams.withNormalization ? normalizeMap(znccResult.dispMapOC, znccParams) : znccResult.dispMapOC;
-
-    // Copy the result to the output
-    znccResult.dispMap = znccResult.dispMapNorm;
+    znccResult.dispMap = znccParams.withNormalization ? normalizeMap(znccResult.dispMapOC, znccParams) : znccResult.dispMapOC;
 
     return znccResult;
 }

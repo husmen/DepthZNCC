@@ -26,6 +26,8 @@ string get_cl_err(cl_int errCode)
         os << "CL_INVALID_WORK_GROUP_SIZE (" << errCode << ")";
     else if (errCode == CL_INVALID_ARG_INDEX)
         os << "CL_INVALID_ARG_INDEX (" << errCode << ")";
+    else if (errCode == CL_INVALID_BUFFER_SIZE)
+        os << "CL_INVALID_BUFFER_SIZE (" << errCode << ")";
     else
         os << "UNKNOWN_ERROR (" << errCode << ")";
 

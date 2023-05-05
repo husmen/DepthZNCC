@@ -146,7 +146,7 @@ tuple<Image, Image> loadImages(string dir)
 
 tuple<Image, Image> loadImages(int argc, char **argv)
 {
-    string dir = "./data/";
+    string dir = "./data/2021_chess2/";
     if (argc > 1)
         dir = argv[1];
 
@@ -155,7 +155,7 @@ tuple<Image, Image> loadImages(int argc, char **argv)
 
 tuple<Image, Image> loadImages()
 {
-    string dir = "./data/";
+    string dir = "./data/2021_chess2/";
     return loadImages(dir);
 }
 

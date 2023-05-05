@@ -68,12 +68,10 @@ double calculateZncc(int x, int y, int d, double mean1, double mean2, const vect
 vector<unsigned char> crosscheck(const vector<unsigned char> &dispMapLeft, const vector<unsigned char> &dispMapRight, const ZnccParams &znccParams)
 {
     cout << "## Cross checking\n";
-
-    const int numPixels = znccParams.width * znccParams.height;
-    vector<unsigned char> result(numPixels);
+    vector<unsigned char> result(dispMapLeft);
 
     // Loop over all pixels
-    for (int idx = 0; idx < numPixels; idx++)
+    for (int idx = 0; idx < znccParams.width * znccParams.height; idx++)
     {
         int y = idx / znccParams.width;
         int x = idx % znccParams.width;
@@ -84,11 +82,7 @@ vector<unsigned char> crosscheck(const vector<unsigned char> &dispMapLeft, const
 
         // Check if the disparities match
         // if (x - dispLeft >= 0 && x - dispLeft < width && abs(dispRight - dispMapLeft[idx - dispLeft]) <= CC_THRESHOLD)
-        if (abs(dispRight - dispLeft) <= znccParams.ccThresh)
-        {
-            result[idx] = static_cast<unsigned char>(dispLeft);
-        }
-        else
+        if (abs(dispRight - dispLeft) > znccParams.ccThresh)
         {
             result[idx] = 0;
         }
@@ -100,11 +94,10 @@ vector<unsigned char> crosscheck(const vector<unsigned char> &dispMapLeft, const
 vector<unsigned char> fillOcclusion(const vector<unsigned char> &dispMap, const ZnccParams &znccParams)
 {
     cout << "## Occlusion filling\n";
-    const int numPixels = znccParams.width * znccParams.height;
-    vector<unsigned char> result(numPixels);
+    vector<unsigned char> result(dispMap);
 
     // Loop over all pixels
-    for (int idx = 0; idx < numPixels; idx++)
+    for (int idx = 0; idx < znccParams.width * znccParams.height; idx++)
     {
         int y = idx / znccParams.width;
         int x = idx % znccParams.width;
@@ -128,24 +121,14 @@ vector<unsigned char> fillOcclusion(const vector<unsigned char> &dispMap, const 
             }
 
             // Calculate a new disparity value as the average of the two nearest non-occluded pixels
-            auto idx_left = y * znccParams.width + left;
-            auto idx_right = y * znccParams.width + right;
-
-            int new_disp = (left >= 0 ? dispMap[idx_left] : right >= znccParams.width ? 0
-                                                                            : dispMap[idx_right]);
-            if (right < znccParams.width && left >= 0)
-            {
-                new_disp = (dispMap[idx_left] + dispMap[idx_right]) / 2;
-            }
+            auto idx_left = max(0, y * znccParams.width + left);
+            auto idx_right = min(znccParams.width - 1, y * znccParams.width + right);
+            auto new_disp = (dispMap[idx_left] + dispMap[idx_right]) / 2;
 
             // Clamp the new disparity value to the valid range
-            new_disp = max(0, min(znccParams.maxDisp, new_disp));
+            // new_disp = max(0, min(znccParams.maxDisp, new_disp));
 
             result[idx] = static_cast<unsigned char>(new_disp);
-        }
-        else
-        {
-            result[idx] = static_cast<unsigned char>(disp);
         }
     }
 

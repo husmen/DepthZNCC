@@ -27,11 +27,11 @@ ZnccResult run_zncc(const Image &leftImg, const Image &rightImg, ZnccParams zncc
      auto methodStr = ZnccMethodToString(znccParams.method);
      auto leftImg_ = znccParams.resizeFactor != 1 ? downsample(leftImg.dataGray, leftImg.width, leftImg.height, znccParams.resizeFactor) : leftImg.dataGray;
      auto rightImg_ = znccParams.resizeFactor != 1 ? downsample(rightImg.dataGray, rightImg.width, rightImg.height, znccParams.resizeFactor) : rightImg.dataGray;
-     
+
      cout << "Running ZNCC with method " << methodStr << "\n";
      auto result = zncc_pipeline(leftImg_, rightImg_, znccParams);
 
-     string filename = "./data/disp_zncc_" + methodStr + "_" + to_string(znccParams.maxDisp) + "_" + to_string(znccParams.winSize) + "_" + to_string(znccParams.ccThresh) + "_" + to_string(znccParams.resizeFactor) + ".png";
+     string filename = "./data/disp_zncc_" + methodStr + "_" + to_string(znccParams.resizeFactor) + "_" + to_string(znccParams.winSize) + "_" + to_string(znccParams.maxDisp) + "_" + to_string(znccParams.ccThresh) + ".png";
      saveImage(filename, result.dispMap, znccParams.width, znccParams.height);
 
      return result;
@@ -58,17 +58,17 @@ int main(int argc, char **argv)
           << "\tGray size: " << img_right.dataGray.size() << "\n";
 
      // Run ZNCC
-     for (auto method : {ZnccMethod::OPENCL})//, ZnccMethod::OPENCL, ZnccMethod::MULTI_THREADED, ZnccMethod::OPENMP, ZnccMethod::SINGLE_THREADED
+     for (auto method : {ZnccMethod::OPENCL}) //, ZnccMethod::OPENCL, ZnccMethod::MULTI_THREADED, ZnccMethod::OPENMP, ZnccMethod::SINGLE_THREADED
      {
-          for (auto maxdisp : {32, 64, 128, 256, 512})
+          for (auto resizeFactor : {1, 2, 4})
           {
-               for (auto winSize : {17, 33, 65, 129, 257})
+               for (auto winSize : {9, 17, 33})
                {
-                    for (auto ccThresh : {8, 16, 32, 64, 128})
+                    for (auto maxDisp : {16, 32, 64})
                     {
-                         for (auto resizeFactor : {1, 2, 4})
+                         for (auto ccThresh : {maxDisp / 2, maxDisp, maxDisp * 2})
                          {
-                              ZnccParams znccParams = {img_left.width / resizeFactor, img_left.height / resizeFactor, maxdisp, winSize, ccThresh, ccThresh / 2, resizeFactor, false, false, false, true, method};
+                              ZnccParams znccParams = {img_left.width / resizeFactor, img_left.height / resizeFactor, maxDisp, winSize, ccThresh, ccThresh / 2, resizeFactor, true, true, true, true, method};
                               auto result = run_zncc(img_left, img_right, znccParams);
                          }
                     }

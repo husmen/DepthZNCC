@@ -20,12 +20,11 @@ extern mutex cout_mutex;
 
 struct ZnccResult
 {
-    vector<unsigned char> dispMap;
     vector<unsigned char> dispMapLeft;
     vector<unsigned char> dispMapRight;
     vector<unsigned char> dispMapCC;
     vector<unsigned char> dispMapOC;
-    vector<unsigned char> dispMapNorm;
+    vector<unsigned char> dispMap;
     double znccTime;
     double crosscheckTime;
     double occlusionTime;
