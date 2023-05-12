@@ -1,6 +1,8 @@
 #pragma once
 
 #include <lodepng.h>
+#include <tuple>
+#include <vector>
 
 using namespace std;
 

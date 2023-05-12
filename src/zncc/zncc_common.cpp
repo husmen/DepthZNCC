@@ -65,6 +65,61 @@ double calculateZncc(int x, int y, int d, double mean1, double mean2, const vect
     return denom == 0.0 ? 0.0 : num / denom;
 }
 
+// #pragma omp declare simd
+double calculateMeanSimd(int x, int y, int d, int width, int height, int halfWinSize, const vector<unsigned char> &img)
+{
+    int yy_0 = max(d, y - halfWinSize);
+    int yy_1 = min(height - d, y + halfWinSize);
+    int xx_0 = max(d, x - halfWinSize);
+    int xx_1 = min(width - d, x + halfWinSize);
+
+    double sum = 0.0;
+#ifdef USE_SIMD
+#pragma omp simd reduction(+:sum) collapse(2)
+#endif
+    for (int yy = yy_0; yy < yy_1; yy++)
+    {
+        for (int xx = xx_0; xx < xx_1; xx++)
+        {
+            sum += img[yy * width + xx - d];
+        }
+    }
+
+    int count = (xx_1 - xx_0) * (yy_1 - yy_0);
+    return sum / (double)count;
+}
+
+// #pragma omp declare simd
+double calculateZnccSimd(int x, int y, int d, double mean1, double mean2, int width, int height, int halfWinSize, const vector<unsigned char> &img1, const vector<unsigned char> &img2)
+{
+    int yy_0 = max(d, y - halfWinSize);
+    int yy_1 = min(height - d, y + halfWinSize);
+    int xx_0 = max(d, x - halfWinSize);
+    int xx_1 = min(width - d, x + halfWinSize);
+
+    double num = 0.0;
+    double denom1 = 0.0;
+    double denom2 = 0.0;
+
+#ifdef USE_SIMD
+#pragma omp simd reduction(+:num, denom1, denom2) collapse(2)
+#endif
+    for (int yy = yy_0; yy < yy_1; yy++)
+    {
+        for (int xx = xx_0; xx < xx_1; xx++)
+        {
+            double val1 = img1[yy * width + xx] - mean1;
+            double val2 = img2[yy * width + xx - d] - mean2;
+            num += val1 * val2;
+            denom1 += val1 * val1;
+            denom2 += val2 * val2;
+        }
+    }
+
+    double denom = sqrt(denom1 * denom2);
+    return denom == 0.0 ? 0.0 : num / denom;
+}
+
 vector<unsigned char> crosscheck(const vector<unsigned char> &dispMapLeft, const vector<unsigned char> &dispMapRight, const ZnccParams &znccParams)
 {
     cout << "## Cross checking\n";

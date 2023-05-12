@@ -44,10 +44,10 @@ long long Timer::getDuration(TimeUnit unit)
 		return duration_us;
 		break;
 	case TimeUnit::ms:
-		return duration_us * 0.001;
+		return duration_us * static_cast<long long>(0.001);
 		break;
 	case TimeUnit::s:
-		return duration_us * 0.000001;
+		return duration_us * static_cast<long long>(0.000001);
 		break;
 	default:
 		return duration_us;

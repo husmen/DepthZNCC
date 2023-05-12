@@ -1,8 +1,10 @@
+#ifdef USE_OCL
+// import FIRST! https://developercommunity.visualstudio.com/t/error-c2872-byte-ambiguous-symbol/93889
+#include "utils/clchecks.hpp"
+#endif
 #include <filesystem>
-
-#include "utils\clchecks.hpp"
-#include "utils\datatools.hpp"
-#include "zncc\zncc.hpp"
+#include "utils/datatools.hpp"
+#include "zncc/zncc.hpp"
 
 namespace fs = filesystem;
 
@@ -43,8 +45,10 @@ int main(int argc, char **argv)
      printHelp(argc, argv);
 
      // Check OpenCL
+#ifdef USE_OCL
      clHelloWorld();
      clVecAdd();
+#endif
 
      // Load images
      auto [img_left, img_right] = loadImages(argc, argv);
@@ -57,24 +61,34 @@ int main(int argc, char **argv)
           << "\tRGB size: " << img_right.dataRgb.size() << "\n"
           << "\tGray size: " << img_right.dataGray.size() << "\n";
 
+     // Run Grid Search for ZNCC Params
+     // for (auto method : {ZnccMethod::OPENCL}) //, ZnccMethod::OPENCL, ZnccMethod::MULTI_THREADED, ZnccMethod::OPENMP, ZnccMethod::SINGLE_THREADED
+     // {
+     //      for (auto resizeFactor : {1, 2, 4})
+     //      {
+     //           for (auto winSize : {9, 17, 33})
+     //           {
+     //                for (auto maxDisp : {16, 32, 64})
+     //                {
+     //                     for (auto ccThresh : {maxDisp / 2, maxDisp, maxDisp * 2})
+     //                     {
+     //                          ZnccParams znccParams = {img_left.width / resizeFactor, img_left.height / resizeFactor, maxDisp, winSize, ccThresh, ccThresh / 2, resizeFactor, true, true, true, true, method};
+     //                          auto result = run_zncc(img_left, img_right, znccParams);
+     //                     }
+     //                }
+     //           }
+     //      }
+     // }
+
      // Run ZNCC
-     for (auto method : {ZnccMethod::OPENCL}) //, ZnccMethod::OPENCL, ZnccMethod::MULTI_THREADED, ZnccMethod::OPENMP, ZnccMethod::SINGLE_THREADED
-     {
-          for (auto resizeFactor : {1, 2, 4})
-          {
-               for (auto winSize : {9, 17, 33})
-               {
-                    for (auto maxDisp : {16, 32, 64})
-                    {
-                         for (auto ccThresh : {maxDisp / 2, maxDisp, maxDisp * 2})
-                         {
-                              ZnccParams znccParams = {img_left.width / resizeFactor, img_left.height / resizeFactor, maxDisp, winSize, ccThresh, ccThresh / 2, resizeFactor, true, true, true, true, method};
-                              auto result = run_zncc(img_left, img_right, znccParams);
-                         }
-                    }
-               }
-          }
-     }
+     auto method = ZnccMethod::OPENCL_OPT;
+     auto resizeFactor = 1;
+     auto winSize = 9;
+     auto maxDisp = 32;
+     auto ccThresh = 32;
+     auto occThresh = 16;
+     ZnccParams znccParams = {static_cast<int>(img_left.width) / resizeFactor, static_cast<int>(img_left.height) / resizeFactor, maxDisp, winSize, ccThresh, occThresh, resizeFactor, true, true, true, true, method};
+     auto result = run_zncc(img_left, img_right, znccParams);
 
      return 0;
 }

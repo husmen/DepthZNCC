@@ -1,7 +1,4 @@
-# export CMAKE_TOOLCHAIN_FILE=/mnt/d/ws_wsl/vcpkg/scripts/buildsystems/vcpkg.cmake 
-
-rm -r build
-mkdir build && cd build
-cmake .. -DCMAKE_TOOLCHAIN_FILE=/mnt/d/ws_wsl/vcpkg/scripts/buildsystems/vcpkg.cmake
-make
+cmake . --preset gcc-x64-debug
+cmake --build build/gcc-x64-debug
+cd build/gcc-x64-debug
 ./depth_zncc

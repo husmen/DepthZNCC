@@ -1,7 +1,5 @@
 #include "datatools.hpp"
 
-#include <vector>
-
 vector<unsigned char> rgbaToGray(const vector<unsigned char> &rgbImg, int w, int h)
 {
     vector<unsigned char> grayImg(w * h);
@@ -146,16 +144,12 @@ tuple<Image, Image> loadImages(string dir)
 
 tuple<Image, Image> loadImages(int argc, char **argv)
 {
-    string dir = "./data/2021_chess2/";
-    if (argc > 1)
-        dir = argv[1];
-
-    return loadImages(dir);
+    return argc > 1 ? loadImages(argv[1]) : loadImages();
 }
 
 tuple<Image, Image> loadImages()
 {
-    string dir = "./data/2021_chess2/";
+    string dir = "./data/2019_backpack/";
     return loadImages(dir);
 }
 
