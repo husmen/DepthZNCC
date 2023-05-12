@@ -1,13 +1,26 @@
 #include "zncc.hpp"
 
+mutex cout_mutex;
+
+string ZnccMethodToStringHelper(ZnccMethod method) 
+{
+    auto it = ZnccMethodToString.find(method);
+    if (it != ZnccMethodToString.end()) {
+        return it->second;
+    } else {
+        return "unknown";
+    }
+}
+
 double calculateMean(int x, int y, int d, const vector<unsigned char> &img, int width, int height)
 {
+    const int halfWinSize = WIN_SIZE / 2;
     double sum = 0.0;
     int count = 0;
 
-    for (int j = -WIN_SIZE / 2; j <= WIN_SIZE / 2; j++)
+    for (int j = -halfWinSize; j <= halfWinSize; j++)
     {
-        for (int i = -WIN_SIZE / 2; i <= WIN_SIZE / 2; i++)
+        for (int i = -halfWinSize; i <= halfWinSize; i++)
         {
             int xj = x + i;
             int yj = y + j;
@@ -28,13 +41,14 @@ double calculateMean(int x, int y, int d, const vector<unsigned char> &img, int 
 
 double calculateZncc(int x, int y, int d, double mean1, double mean2, const vector<unsigned char> &img1, const vector<unsigned char> &img2, int width, int height)
 {
+    const int halfWinSize = WIN_SIZE / 2;
     double num = 0.0;
     double denom1 = 0.0;
     double denom2 = 0.0;
 
-    for (int j = -WIN_SIZE / 2; j <= WIN_SIZE / 2; j++)
+    for (int j = -halfWinSize; j <= halfWinSize; j++)
     {
-        for (int i = -WIN_SIZE / 2; i <= WIN_SIZE / 2; i++)
+        for (int i = -halfWinSize; i <= halfWinSize; i++)
         {
             int xj1 = x + i;
             int xj2 = x + i - d;
@@ -60,7 +74,7 @@ double calculateZncc(int x, int y, int d, double mean1, double mean2, const vect
     return num / denom;
 }
 
-void zncc(const vector<unsigned char> &leftImg, const vector<unsigned char> &rightImg, vector<unsigned char> &disparityImg, int width, int height)
+void zncc_single(const vector<unsigned char> &leftImg, const vector<unsigned char> &rightImg, vector<unsigned char> &disparityImg, int width, int height)
 {
     for (int j = 0; j < height; j++)
     {
@@ -88,7 +102,7 @@ void zncc(const vector<unsigned char> &leftImg, const vector<unsigned char> &rig
 
             disparityImg[idx] = (unsigned char)bestDisp;
 
-            if (idx > 0 && idx % (width * 10) == 0)
+            if (idx > 0 && idx % (width * 100) == 0)
             {
                 cout << "Progress " << fixed << setprecision(2) << (j + 1) / (double)height * 100 << " %, " << j + 1 << "/" << height << " rows done!" << endl;
             }
@@ -96,6 +110,189 @@ void zncc(const vector<unsigned char> &leftImg, const vector<unsigned char> &rig
     }
 
     // cout << "ZNCC min,max = " << (int)*min_element(disparityImg.begin(), disparityImg.end()) << "," << (int)*max_element(disparityImg.begin(), disparityImg.end()) << endl;
+}
+
+void zncc_multi(const vector<unsigned char> &leftImg, const vector<unsigned char> &rightImg, vector<unsigned char> &disparityImg, int width, int height)
+{
+    const int num_threads = thread::hardware_concurrency();
+    const int chunk_size = height / num_threads;
+
+    vector<thread> threads(num_threads);
+    for (int t = 0; t < num_threads; t++) {
+        const int start_row = t * chunk_size;
+        const int end_row = (t == num_threads - 1) ? height : (t + 1) * chunk_size;
+
+        threads[t] = thread([=, &disparityImg]() 
+        {
+            for (int j = start_row; j < end_row; j++)
+            {
+                for (int i = 0; i < width; i++)
+                {
+                    double maxZncc = -1.0;
+                    int bestDisp = 0;
+
+                    double mean1 = calculateMean(i, j, 0, leftImg, width, height);
+
+                    for (int d = 0; d < MAX_DISP; d++)
+                    {
+                        double mean2 = calculateMean(i, j, d, rightImg, width, height);
+
+                        double znccVal = calculateZncc(i, j, d, mean1, mean2, leftImg, rightImg, width, height);
+
+                        if (znccVal > maxZncc)
+                        {
+                            maxZncc = znccVal;
+                            bestDisp = d;
+                        }
+                    }
+
+                    auto idx = j * width + i;
+
+                    disparityImg[idx] = (unsigned char)bestDisp;
+                }
+            }
+        });
+    }
+
+    for (int t = 0; t < num_threads; t++) 
+    {
+        threads[t].join();
+    }
+}
+
+void zncc_openmp(const vector<unsigned char> &leftImg, const vector<unsigned char> &rightImg, vector<unsigned char> &disparityImg, int width, int height)
+{
+    const int num_threads = omp_get_max_threads();
+    const int chunk_size = height / num_threads;
+
+    #pragma omp parallel for schedule(dynamic)
+    for (int t = 0; t < num_threads; t++) {
+        const int start_row = t * chunk_size;
+        const int end_row = (t == num_threads - 1) ? height : (t + 1) * chunk_size;
+
+        for (int j = start_row; j < end_row; j++)
+        {
+            for (int i = 0; i < width; i++)
+            {
+                double maxZncc = -1.0;
+                int bestDisp = 0;
+
+                double mean1 = calculateMean(i, j, 0, leftImg, width, height);
+
+                for (int d = 0; d < MAX_DISP; d++)
+                {
+                    double mean2 = calculateMean(i, j, d, rightImg, width, height);
+
+                    double znccVal = calculateZncc(i, j, d, mean1, mean2, leftImg, rightImg, width, height);
+
+                    if (znccVal > maxZncc)
+                    {
+                        maxZncc = znccVal;
+                        bestDisp = d;
+                    }
+                }
+
+                auto idx = j * width + i;
+
+                disparityImg[idx] = (unsigned char)bestDisp;
+
+                // TODO: Better logging for OpenMP and MultiThreading progress
+                // if (idx > 0 && idx % (width * 10) == 0)
+                // {
+                //     #pragma omp critical
+                //     {
+                //         cout << "Progress " << fixed << setprecision(2) << (j + 1) / (double)height * 100 << " %, " << j + 1 << "/" << height << " rows done!" << endl;
+                //     }
+                // }
+            }
+        }
+    }
+}
+
+void zncc_opencl(const vector<unsigned char> &leftImg, const vector<unsigned char> &rightImg, vector<unsigned char> &disparityImg, int width, int height)
+{
+    try
+    {
+        // Query for platforms
+        vector<cl::Platform> platforms;
+        cl::Platform::get(&platforms);
+
+        // Get a list of devices on this platform
+        vector<cl::Device> devices;
+        platforms[0].getDevices(CL_DEVICE_TYPE_ALL, &devices);
+
+        // Create a context for the devices
+        cl::Context context(devices);
+
+        // Create a command−queue for the first device
+        cl::CommandQueue queue = cl::CommandQueue(context, devices[0]);
+
+        // Create OpenCL memory buffers
+        size_t inputSize = sizeof(unsigned char) * leftImg.size();
+        cl::Buffer leftImgBuffer = cl::Buffer(context, CL_MEM_READ_ONLY, inputSize, NULL, NULL);
+        cl::Buffer rightImgBuffer = cl::Buffer(context, CL_MEM_READ_ONLY, inputSize, NULL, NULL);
+        cl::Buffer disparityImgBuffer = cl::Buffer(context, CL_MEM_WRITE_ONLY, inputSize, NULL, NULL);
+
+        // Copy the input data to the input buffers
+        queue.enqueueWriteBuffer(leftImgBuffer, CL_TRUE, 0, inputSize, &leftImg[0]);
+        queue.enqueueWriteBuffer(rightImgBuffer, CL_TRUE, 0, inputSize, &rightImg[0]);
+
+        // Read the program source
+        ifstream sourceFile("kernels/zncc_kernels.cl");
+        string sourceCode(istreambuf_iterator<char>(sourceFile), (istreambuf_iterator<char>()));
+        cl::Program::Sources source(1, make_pair(sourceCode.c_str(), sourceCode.length() + 1));
+
+        // Create the program from the source code
+        cl::Program program = cl::Program(context, source);
+
+        // Build the program for the devices
+        auto err = program.build(devices);
+        cout << get_cl_err(err) << endl;
+
+        // Create the kernel
+        cl::Kernel zncc_kernel(program, "zncc_kernel");
+
+        // Set the kernel arguments
+        zncc_kernel.setArg(0, leftImgBuffer);
+        zncc_kernel.setArg(1, rightImgBuffer);
+        zncc_kernel.setArg(2, disparityImgBuffer);
+        zncc_kernel.setArg(3, width);
+        zncc_kernel.setArg(4, height);
+
+        // Execute the kernel
+        cl::NDRange global(width * height);
+        // cl::NDRange local(WIN_SIZE * WIN_SIZE);
+        queue.enqueueNDRangeKernel(zncc_kernel, cl::NullRange, global);
+        // queue.finish();
+
+        // Copy the output data back to the host
+        // unsigned char *tmpDisparity;
+        queue.enqueueReadBuffer(disparityImgBuffer, CL_TRUE, 0, inputSize, &disparityImg[0]);
+    }
+    catch (cl::Error error)
+    {
+        cout << error.what() << ": " << get_cl_err(error.err()) << endl;
+    }
+}
+
+void zncc(const vector<unsigned char> &leftImg, const vector<unsigned char> &rightImg, vector<unsigned char> &disparityImg, int width, int height, ZnccMethod method)
+{
+    switch(method)
+    {
+        case ZnccMethod::SINGLE_THREADED:
+            zncc_single(leftImg, rightImg, disparityImg, width, height);
+            break;
+        case ZnccMethod::MULTI_THREADED:
+            zncc_multi(leftImg, rightImg, disparityImg, width, height);
+            break;
+        case ZnccMethod::OPENMP:
+            zncc_openmp(leftImg, rightImg, disparityImg, width, height);
+            break;
+        case ZnccMethod::OPENCL:
+            zncc_opencl(leftImg, rightImg, disparityImg, width, height);
+            break;
+    }
+    
 }
 
 vector<unsigned char> cross_check(const vector<unsigned char>& dispMapLeft, const vector<unsigned char>& dispMapRight, int width, int height)
@@ -191,7 +388,7 @@ void normalize(vector<unsigned char>& dispMap)
     }
 }
 
-void zncc_pipeline(const vector<unsigned char> &imgLeft, const vector<unsigned char> &imgRight, vector<unsigned char> &dispMap, int width, int height, bool crossCheck, bool occlusionFill)
+void zncc_pipeline(const vector<unsigned char> &imgLeft, const vector<unsigned char> &imgRight, vector<unsigned char> &dispMap, int width, int height, ZnccMethod method, bool crossCheck, bool occlusionFill)
 {
     vector<unsigned char> dispMapLeft(width * height);
     vector<unsigned char> dispMapRight(width * height);
@@ -200,12 +397,12 @@ void zncc_pipeline(const vector<unsigned char> &imgLeft, const vector<unsigned c
 
     // Compute the disparity map using ZNCC
     cout << "# ZNCC Left\n";
-    zncc(imgLeft, imgRight, dispMapLeft, width, height);
+    zncc(imgLeft, imgRight, dispMapLeft, width, height, method);
 
     if (crossCheck)
     {
         cout << "# ZNCC right\n";
-        zncc(imgRight, imgLeft, dispMapRight, width, height);
+        zncc(imgRight, imgLeft, dispMapRight, width, height, method);
 
         // Cross-check the disparity map
         cout << "# Cross-checkingt\n";

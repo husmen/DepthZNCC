@@ -144,6 +144,15 @@ tuple<Image, Image> loadImages(string dir)
     return loadImages(dir, "im0.png", "im1.png");
 }
 
+tuple<Image, Image> loadImages(int argc, char **argv)
+{
+    string dir = "./data/";
+    if (argc > 1)
+        dir = argv[1];
+
+    return loadImages(dir);
+}
+
 tuple<Image, Image> loadImages()
 {
     string dir = "./data/";
