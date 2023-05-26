@@ -89,7 +89,7 @@ Kernel work group size: 14757395258967641292
 - [X] ZNCC OpenCL optimization.
 - [X] Benchmarking all implementations.
 - [ ] Advanced profiling (Orbit?)
-- [ ] ZNCC CUDA (optional).
+- [X] ZNCC CUDA (optional).
 - [ ] Unit tests (optional).
 - [ ] Automatic data downloader (optional).
 
@@ -115,8 +115,11 @@ Kernel work group size: 14757395258967641292
 - **Day 10**: SIMD implementation, with better loop structures to take data locality into account.
 - **Day 11**: Reworking CMake configuration to solve OpenCL issues on WSL, SIMD issues on Windows.
 - **Day 12**: Improved and Optimized OpenCL implementation, based on ideas from the SIMD implementation.
-- **Day 13**:
-- **Day 14**:
+- **Day 13**: Trying to figure out the write way to compile and link cuda files suing CMake.
+- **Day 14**: 
+    - CUDA implementation.
+    - ~~OpenCL pipes, failed.~~
+- **Day 15**: Code cleanup and report.
 
 ## References
 
