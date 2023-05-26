@@ -39,6 +39,7 @@ struct ZnccParams
     bool withOcclusionFilling;
     bool withNormalization;
     ZnccMethod method;
+    int platformId;
 };
 
 const map<ZnccMethod, string> ZnccString = {

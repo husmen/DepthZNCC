@@ -16,11 +16,11 @@ OpenCL implementation of Zero-mean Normalized Cross Correlation (ZNCC) - Project
 
 ## Benchmarks:
 
-resizeFactor: 1
-winSize: 9
-maxDisp: 32
-ccThresh: 32
-occThresh = 16
+- resizeFactor: 1
+- winSize: 9
+- maxDisp: 32
+- ccThresh: 32
+- occThresh = 16
 
 | Method ⬇️\Resolution ➡️ | 2940x2016 | 1470x1008 | 735x504 |
 |-----|-----|-----|-----|
@@ -28,12 +28,12 @@ occThresh = 16
 | Multi-Threaded | 50.7 | - | - |
 | OpenMP | 51.8 | - | - |
 | SIMD | 15.4 | - | - |
-| OpenCL (GPU) | 6.0 | - | - |
-| OpenCL (APU) | 6.0 | - | - |
-| OpenCL (CPU) | 6.0 | - | - |
-| OpenCL Optimized (GPU) | 2.3 | - | - |
-| OpenCL Optimized (APU) | 2.3 | - | - |
-| OpenCL Optimized (CPU) | 2.3 | - | - |
+| OpenCL (GPU) | 4.1 | - | - |
+| OpenCL (APU) | 4.0 | - | - |
+| OpenCL (CPU) | 11.6 | - | - |
+| OpenCL Optimized (GPU) | 2.2 | - | - |
+| OpenCL Optimized (APU) | 1.8 | - | - |
+| OpenCL Optimized (CPU) | DNR | - | - |
 | CUDA | - | - | - |
 [Benchmark results as runtime in seconds]
 

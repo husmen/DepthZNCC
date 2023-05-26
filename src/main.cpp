@@ -80,15 +80,28 @@ int main(int argc, char **argv)
      //      }
      // }
 
-     // Run ZNCC
-     auto method = ZnccMethod::OPENCL_OPT;
+     // ZNCC best params
      auto resizeFactor = 1;
      auto winSize = 9;
      auto maxDisp = 32;
      auto ccThresh = 32;
      auto occThresh = 16;
-     ZnccParams znccParams = {static_cast<int>(img_left.width) / resizeFactor, static_cast<int>(img_left.height) / resizeFactor, maxDisp, winSize, ccThresh, occThresh, resizeFactor, true, true, true, true, method};
-     auto result = run_zncc(img_left, img_right, znccParams);
+
+     // Run ZNCC for different OpenCL devices
+     for (auto platformId : {0, 1, 2}) // APU, GPU, CPU
+     {
+          for (auto method : {ZnccMethod::OPENCL, ZnccMethod::OPENCL_OPT})
+          {
+               auto znccParams = ZnccParams{static_cast<int>(img_left.width) / resizeFactor, static_cast<int>(img_left.height) / resizeFactor, maxDisp, winSize, ccThresh, occThresh, resizeFactor, true, true, true, true, method, platformId};     
+               auto result = run_zncc(img_left, img_right, znccParams);
+          }
+     }
+
+     // Run ZNCC with best params
+     // auto method = ZnccMethod::OPENCL_OPT;
+     // auto platformId = 1;
+     // auto znccParams = ZnccParams{static_cast<int>(img_left.width) / resizeFactor, static_cast<int>(img_left.height) / resizeFactor, maxDisp, winSize, ccThresh, occThresh, resizeFactor, true, true, true, true, method, platformId};
+     // auto result = run_zncc(img_left, img_right, znccParams);
 
      return 0;
 }

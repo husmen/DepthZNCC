@@ -185,7 +185,9 @@ void zncc_opencl(vector<unsigned char> &dispMap, const vector<unsigned char> &le
 
         // Get a list of devices on this platform
         vector<cl::Device> devices;
-        platforms[1].getDevices(CL_DEVICE_TYPE_ALL, &devices);
+        platforms[znccParams.platformId].getDevices(CL_DEVICE_TYPE_ALL, &devices);
+        auto deviceName = devices[0].getInfo<CL_DEVICE_NAME>();
+        cout << "# Running OPENCL on " << deviceName << endl;
 
         // Create a context for the devices
         cl::Context context(devices);
@@ -251,7 +253,9 @@ void zncc_opencl_opt(vector<unsigned char> &dispMap, const vector<unsigned char>
 
         // Get a list of devices on this platform
         vector<cl::Device> devices;
-        platforms[1].getDevices(CL_DEVICE_TYPE_ALL, &devices);
+        platforms[znccParams.platformId].getDevices(CL_DEVICE_TYPE_ALL, &devices);
+        auto deviceName = devices[0].getInfo<CL_DEVICE_NAME>();
+        cout << "# Running OPENCL_OPT on " << deviceName << endl;
 
         // Create a context for the devices
         cl::Context context(devices);
