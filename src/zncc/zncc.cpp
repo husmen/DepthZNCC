@@ -188,7 +188,7 @@ void zncc_cuda(vector<unsigned char> &dispMap, const vector<unsigned char> &left
 void zncc(vector<unsigned char> &leftDispMap, vector<unsigned char> &rightDispMap, const vector<unsigned char> &leftImg, const vector<unsigned char> &rightImg, const ZnccParams &znccParams)
 {
     #ifndef USE_OCL
-    if (znccParams.method == ZnccMethod::OPENCL_NAIVE || znccParams.method == ZnccMethod::OPENCL_OPT)
+    if (znccParams.method == ZnccMethod::OPENCL || znccParams.method == ZnccMethod::OPENCL_OPT)
     {
         cout << "OpenCL not enabled" << endl;
         return;
@@ -213,17 +213,17 @@ void zncc(vector<unsigned char> &leftDispMap, vector<unsigned char> &rightDispMa
         zncc_simd(leftDispMap, leftImg, rightImg, znccParams);
         zncc_simd(rightDispMap, rightImg, leftImg, znccParams);
         break;
-    case ZnccMethod::OPENCL_NAIVE:
-        zncc_opencl_naive(leftDispMap, leftImg, rightImg, znccParams, false);
-        zncc_opencl_naive(rightDispMap, rightImg, leftImg, znccParams, true);
+    case ZnccMethod::OPENCL:
+        zncc_opencl(leftDispMap, leftImg, rightImg, znccParams, false);
+        zncc_opencl(rightDispMap, rightImg, leftImg, znccParams, true);
         break;
     case ZnccMethod::OPENCL_OPT1:
         zncc_opencl_opt1(leftDispMap, leftImg, rightImg, znccParams);
         zncc_opencl_opt1(rightDispMap, rightImg, leftImg, znccParams);
         break;
-    case ZnccMethod::OPENCL_OPT2:
-        zncc_opencl_opt2(leftDispMap, leftImg, rightImg, znccParams, false);
-        zncc_opencl_opt2(rightDispMap, rightImg, leftImg, znccParams, true);
+    case ZnccMethod::OPENCL_OPT:
+        zncc_opencl_opt(leftDispMap, leftImg, rightImg, znccParams, false);
+        zncc_opencl_opt(rightDispMap, rightImg, leftImg, znccParams, true);
         break;
     case ZnccMethod::OPENCL_OPT3:
         zncc_opencl_opt3(leftDispMap, rightDispMap, leftImg, rightImg, znccParams);
@@ -256,30 +256,33 @@ ZnccResult zncc_pipeline(const vector<unsigned char> &leftImg, const vector<unsi
         znccResult.znccTime = timer.getDuration();
     }
 
+    return znccResult;
+}
+
+void post_proc_pipeline(ZnccResult &result, ZnccParams &params)
+{
     cout << "## Postprocessing ...\n";
     {
         Timer timer;
         
         // Apply cross checking if enabled
-        znccResult.dispMapCC = znccParams.withCrossChecking ? crosscheck(znccResult.dispMapLeft, znccResult.dispMapRight, znccParams) : znccResult.dispMapLeft;
+        result.dispMapCC = params.withCrossChecking ? crosscheck(result.dispMapLeft, result.dispMapRight, params) : result.dispMapLeft;
 
         // Apply occlusion filling if enabled
-        znccResult.dispMapOC = znccParams.withOcclusionFilling ? fillOcclusion(znccResult.dispMapCC, znccParams) : znccResult.dispMapCC;
+        result.dispMapOC = params.withOcclusionFilling ? fillOcclusion(result.dispMapCC, params) : result.dispMapCC;
 
         // Normalize the disparity map if enabled
-        if(znccParams.withNormalization)
+        if(params.withNormalization)
         {
-            znccResult.dispMap = normalizeMap(znccResult.dispMap, znccParams);
-            znccResult.dispMapLeft = normalizeMap(znccResult.dispMapLeft, znccParams);
-            znccResult.dispMapRight = normalizeMap(znccResult.dispMapRight, znccParams);
+            result.dispMap = normalizeMap(result.dispMapCC, params);
+            result.dispMapLeft = normalizeMap(result.dispMapLeft, params);
+            result.dispMapRight = normalizeMap(result.dispMapRight, params);
         }
         else
         {
-            znccResult.dispMap = znccResult.dispMapOC;
+            result.dispMap = result.dispMapOC;
         }
 
-        znccResult.postProcTime = timer.getDuration();
+        result.postProcTime = timer.getDuration();
     }
-
-    return znccResult;
 }

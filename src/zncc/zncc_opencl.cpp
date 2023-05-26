@@ -50,7 +50,7 @@ tuple<cl::Buffer, cl::Buffer, cl::Buffer> configure_buffers(cl::Context context,
 }
 
 
-void zncc_opencl_naive(vector<unsigned char> &dispMap, const vector<unsigned char> &leftImg, const vector<unsigned char> &rightImg, const ZnccParams &znccParams, bool reverse)
+void zncc_opencl(vector<unsigned char> &dispMap, const vector<unsigned char> &leftImg, const vector<unsigned char> &rightImg, const ZnccParams &znccParams, bool reverse)
 {
     try
     {
@@ -133,7 +133,7 @@ void zncc_opencl_opt1(vector<unsigned char> &dispMap, const vector<unsigned char
 }
 
 
-void zncc_opencl_opt2(vector<unsigned char> &dispMap, const vector<unsigned char> &leftImg, const vector<unsigned char> &rightImg, const ZnccParams &znccParams, bool reverse)
+void zncc_opencl_opt(vector<unsigned char> &dispMap, const vector<unsigned char> &leftImg, const vector<unsigned char> &rightImg, const ZnccParams &znccParams, bool reverse)
 {
     try
     {
