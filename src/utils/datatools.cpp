@@ -1,7 +1,5 @@
 #include "datatools.hpp"
 
-#include <vector>
-
 vector<unsigned char> rgbaToGray(const vector<unsigned char> &rgbImg, int w, int h)
 {
     vector<unsigned char> grayImg(w * h);
@@ -40,10 +38,10 @@ vector<unsigned char> grayToRgba(const vector<unsigned char> &grayImg, int w, in
     return rgbImg;
 }
 
-vector<unsigned char> downsample(const vector<unsigned char> &image, int width, int height)
+vector<unsigned char> downsample(const vector<unsigned char> &image, int width, int height, int factor)
 {
-    int new_width = width / RESIZE_FACTOR;
-    int new_height = height / RESIZE_FACTOR;
+    int new_width = width / factor;
+    int new_height = height / factor;
 
     vector<unsigned char> resized_image(new_width * new_height);
 
@@ -52,8 +50,8 @@ vector<unsigned char> downsample(const vector<unsigned char> &image, int width, 
         for (int x = 0; x < new_width; x++)
         {
             // Compute the corresponding pixel in the original image
-            int x_orig = x * RESIZE_FACTOR;
-            int y_orig = y * RESIZE_FACTOR;
+            int x_orig = x * factor;
+            int y_orig = y * factor;
 
             // Compute the four nearest neighbors in the original image
             unsigned char tl = image[y_orig * width + x_orig];
@@ -62,8 +60,8 @@ vector<unsigned char> downsample(const vector<unsigned char> &image, int width, 
             unsigned char br = image[(y_orig + 1) * width + x_orig + 1];
 
             // Compute the weighted average using bilinear interpolation
-            float x_ratio = static_cast<float>(x_orig % RESIZE_FACTOR) / (float)RESIZE_FACTOR;
-            float y_ratio = static_cast<float>(y_orig % RESIZE_FACTOR) / (float)RESIZE_FACTOR;
+            float x_ratio = static_cast<float>(x_orig % factor) / (float)factor;
+            float y_ratio = static_cast<float>(y_orig % factor) / (float)factor;
             float top = tl * (1.0f - x_ratio) + tr * x_ratio;
             float bottom = bl * (1.0f - x_ratio) + br * x_ratio;
             float value = top * (1.0f - y_ratio) + bottom * y_ratio;
@@ -76,18 +74,18 @@ vector<unsigned char> downsample(const vector<unsigned char> &image, int width, 
     return resized_image;
 }
 
-vector<unsigned char> upsample(const vector<unsigned char> &img, int width, int height)
+vector<unsigned char> upsample(const vector<unsigned char> &img, int width, int height, int factor)
 {
-    int new_width = width * RESIZE_FACTOR;
-    int new_height = height * RESIZE_FACTOR;
+    int new_width = width * factor;
+    int new_height = height * factor;
     vector<unsigned char> new_img(new_width * new_height);
 
     for (int j = 0; j < new_height; j++)
     {
         for (int i = 0; i < new_width; i++)
         {
-            int x = i / RESIZE_FACTOR;
-            int y = j / RESIZE_FACTOR;
+            int x = i / factor;
+            int y = j / factor;
             int idx = j * new_width + i;
             int new_idx = y * width + x;
             new_img[idx] = img[new_idx];
@@ -110,9 +108,9 @@ tuple<bool, Image> loadImage(string fpath)
     {
         img.dataRgb = vector<unsigned char>(buffer, buffer + img.width * img.height * 4);
         img.dataGray = rgbaToGray(img.dataRgb, img.width, img.height);
-        img.dataGraySmall = downsample(img.dataGray, img.width, img.height);
-        img.widthSmall = img.width / RESIZE_FACTOR;
-        img.heightSmall = img.height / RESIZE_FACTOR;
+        // img.dataGraySmall = downsample(img.dataGray, img.width, img.height);
+        // img.widthSmall = img.width / factor;
+        // img.heightSmall = img.height / factor;
         // saveImage("./data/im0_gray_res.png", img.dataGraySmall, img.widthSmall, img.heightSmall);
         free(buffer);
     }
@@ -146,16 +144,12 @@ tuple<Image, Image> loadImages(string dir)
 
 tuple<Image, Image> loadImages(int argc, char **argv)
 {
-    string dir = "./data/";
-    if (argc > 1)
-        dir = argv[1];
-
-    return loadImages(dir);
+    return argc > 1 ? loadImages(argv[1]) : loadImages();
 }
 
 tuple<Image, Image> loadImages()
 {
-    string dir = "./data/";
+    string dir = "./data/2019_backpack/";
     return loadImages(dir);
 }
 

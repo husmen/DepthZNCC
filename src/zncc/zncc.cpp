@@ -2,188 +2,75 @@
 
 mutex cout_mutex;
 
-string ZnccMethodToStringHelper(ZnccMethod method) 
+// Single threaded ZNCC
+void zncc_single(vector<unsigned char> &dispMap, const vector<unsigned char> &leftImg, const vector<unsigned char> &rightImg, const ZnccParams &znccParams)
 {
-    auto it = ZnccMethodToString.find(method);
-    if (it != ZnccMethodToString.end()) {
-        return it->second;
-    } else {
-        return "unknown";
-    }
-}
+    const int numPixels = znccParams.width * znccParams.height;
 
-double calculateMean(int x, int y, int d, const vector<unsigned char> &img, int width, int height)
-{
-    const int halfWinSize = WIN_SIZE / 2;
-    double sum = 0.0;
-    int count = 0;
-
-    for (int j = -halfWinSize; j <= halfWinSize; j++)
+    for (int idx = 0; idx < numPixels; idx++)
     {
-        for (int i = -halfWinSize; i <= halfWinSize; i++)
+        int x = idx % znccParams.width;
+        int y = idx / znccParams.width;
+
+        double maxZncc = -1.0;
+        int bestDisp = 0;
+
+        double mean1 = calculateMean(x, y, 0, leftImg, znccParams);
+
+        for (int d = 0; d < znccParams.maxDisp; d++)
         {
-            int xj = x + i;
-            int yj = y + j;
-            if (xj >= 0 && xj < width && yj >= 0 && yj < height)
+            double mean2 = calculateMean(x, y, d, rightImg, znccParams);
+
+            double znccVal = calculateZncc(x, y, d, mean1, mean2, leftImg, rightImg, znccParams);
+
+            if (znccVal > maxZncc)
             {
-                int xjd = xj - d;
-                if (xjd >= 0 && xjd < width)
-                {
-                    sum += img[yj * width + xjd];
-                    count++;
-                }
+                maxZncc = znccVal;
+                bestDisp = d;
             }
         }
-    }
 
-    return sum / (double)count;
-}
+        dispMap[idx] = static_cast<unsigned char>(bestDisp);
 
-double calculateZncc(int x, int y, int d, double mean1, double mean2, const vector<unsigned char> &img1, const vector<unsigned char> &img2, int width, int height)
-{
-    const int halfWinSize = WIN_SIZE / 2;
-    double num = 0.0;
-    double denom1 = 0.0;
-    double denom2 = 0.0;
-
-    for (int j = -halfWinSize; j <= halfWinSize; j++)
-    {
-        for (int i = -halfWinSize; i <= halfWinSize; i++)
+        if (idx > 0 && idx % (znccParams.width * 100) == 0)
         {
-            int xj1 = x + i;
-            int xj2 = x + i - d;
-            int yj = y + j;
-            if (xj1 >= 0 && xj1 < width && xj2 >= 0 && xj2 < width && yj >= 0 && yj < height)
-            {
-                double val1 = img1[yj * width + xj1] - mean1;
-                double val2 = img2[yj * width + xj2] - mean2;
-                num += val1 * val2;
-                denom1 += val1 * val1;
-                denom2 += val2 * val2;
-            }
-        }
-    }
-
-    double denom = sqrt(denom1 * denom2);
-
-    if (denom == 0.0)
-    {
-        return 0.0;
-    }
-
-    return num / denom;
-}
-
-void zncc_single(const vector<unsigned char> &leftImg, const vector<unsigned char> &rightImg, vector<unsigned char> &disparityImg, int width, int height)
-{
-    for (int j = 0; j < height; j++)
-    {
-        for (int i = 0; i < width; i++)
-        {
-            double maxZncc = -1.0;
-            int bestDisp = 0;
-
-            double mean1 = calculateMean(i, j, 0, leftImg, width, height);
-
-            for (int d = 0; d < MAX_DISP; d++)
-            {
-                double mean2 = calculateMean(i, j, d, rightImg, width, height);
-
-                double znccVal = calculateZncc(i, j, d, mean1, mean2, leftImg, rightImg, width, height);
-
-                if (znccVal > maxZncc)
-                {
-                    maxZncc = znccVal;
-                    bestDisp = d;
-                }
-            }
-
-            auto idx = j * width + i;
-
-            disparityImg[idx] = (unsigned char)bestDisp;
-
-            if (idx > 0 && idx % (width * 100) == 0)
-            {
-                cout << "Progress " << fixed << setprecision(2) << (j + 1) / (double)height * 100 << " %, " << j + 1 << "/" << height << " rows done!" << endl;
-            }
+            cout << "Progress " << fixed << setprecision(2) << (idx + 1) / static_cast<double>(numPixels) * 100 << " %, " << idx + 1 << "/" << numPixels << " pixels done!" << endl;
         }
     }
 
     // cout << "ZNCC min,max = " << (int)*min_element(disparityImg.begin(), disparityImg.end()) << "," << (int)*max_element(disparityImg.begin(), disparityImg.end()) << endl;
 }
 
-void zncc_multi(const vector<unsigned char> &leftImg, const vector<unsigned char> &rightImg, vector<unsigned char> &disparityImg, int width, int height)
+// Multi threaded ZNCC
+void zncc_multi(vector<unsigned char> &dispMap, const vector<unsigned char> &leftImg, const vector<unsigned char> &rightImg, const ZnccParams &znccParams)
 {
     const int num_threads = thread::hardware_concurrency();
-    const int chunk_size = height / num_threads;
+    const int chunk_size = znccParams.height / num_threads;
 
     vector<thread> threads(num_threads);
-    for (int t = 0; t < num_threads; t++) {
-        const int start_row = t * chunk_size;
-        const int end_row = (t == num_threads - 1) ? height : (t + 1) * chunk_size;
 
-        threads[t] = thread([=, &disparityImg]() 
-        {
-            for (int j = start_row; j < end_row; j++)
-            {
-                for (int i = 0; i < width; i++)
-                {
-                    double maxZncc = -1.0;
-                    int bestDisp = 0;
-
-                    double mean1 = calculateMean(i, j, 0, leftImg, width, height);
-
-                    for (int d = 0; d < MAX_DISP; d++)
-                    {
-                        double mean2 = calculateMean(i, j, d, rightImg, width, height);
-
-                        double znccVal = calculateZncc(i, j, d, mean1, mean2, leftImg, rightImg, width, height);
-
-                        if (znccVal > maxZncc)
-                        {
-                            maxZncc = znccVal;
-                            bestDisp = d;
-                        }
-                    }
-
-                    auto idx = j * width + i;
-
-                    disparityImg[idx] = (unsigned char)bestDisp;
-                }
-            }
-        });
-    }
-
-    for (int t = 0; t < num_threads; t++) 
+    for (int t = 0; t < num_threads; t++)
     {
-        threads[t].join();
-    }
-}
-
-void zncc_openmp(const vector<unsigned char> &leftImg, const vector<unsigned char> &rightImg, vector<unsigned char> &disparityImg, int width, int height)
-{
-    const int num_threads = omp_get_max_threads();
-    const int chunk_size = height / num_threads;
-
-    #pragma omp parallel for schedule(dynamic)
-    for (int t = 0; t < num_threads; t++) {
         const int start_row = t * chunk_size;
-        const int end_row = (t == num_threads - 1) ? height : (t + 1) * chunk_size;
+        const int end_row = (t == num_threads - 1) ? znccParams.height : (t + 1) * chunk_size;
 
-        for (int j = start_row; j < end_row; j++)
-        {
-            for (int i = 0; i < width; i++)
+        threads[t] = thread([=, &leftImg, &rightImg, &dispMap]()
+                            {
+            for (int idx = start_row * znccParams.width; idx < end_row * znccParams.width; idx++) 
             {
+                int j = idx / znccParams.width;
+                int i = idx % znccParams.width;
+
                 double maxZncc = -1.0;
                 int bestDisp = 0;
 
-                double mean1 = calculateMean(i, j, 0, leftImg, width, height);
+                double mean1 = calculateMean(i, j, 0, leftImg, znccParams);
 
-                for (int d = 0; d < MAX_DISP; d++)
+                for (int d = 0; d < znccParams.maxDisp; d++)
                 {
-                    double mean2 = calculateMean(i, j, d, rightImg, width, height);
+                    double mean2 = calculateMean(i, j, d, rightImg, znccParams);
 
-                    double znccVal = calculateZncc(i, j, d, mean1, mean2, leftImg, rightImg, width, height);
+                    double znccVal = calculateZncc(i, j, d, mean1, mean2, leftImg, rightImg, znccParams);
 
                     if (znccVal > maxZncc)
                     {
@@ -192,24 +79,103 @@ void zncc_openmp(const vector<unsigned char> &leftImg, const vector<unsigned cha
                     }
                 }
 
-                auto idx = j * width + i;
+                dispMap[idx] = static_cast<unsigned char>(bestDisp);
+            } });
+    }
 
-                disparityImg[idx] = (unsigned char)bestDisp;
-
-                // TODO: Better logging for OpenMP and MultiThreading progress
-                // if (idx > 0 && idx % (width * 10) == 0)
-                // {
-                //     #pragma omp critical
-                //     {
-                //         cout << "Progress " << fixed << setprecision(2) << (j + 1) / (double)height * 100 << " %, " << j + 1 << "/" << height << " rows done!" << endl;
-                //     }
-                // }
-            }
-        }
+    for (int t = 0; t < num_threads; t++)
+    {
+        threads[t].join();
     }
 }
 
-void zncc_opencl(const vector<unsigned char> &leftImg, const vector<unsigned char> &rightImg, vector<unsigned char> &disparityImg, int width, int height)
+
+void zncc_openmp(vector<unsigned char> &dispMap, const vector<unsigned char> &leftImg, const vector<unsigned char> &rightImg, const ZnccParams &znccParams)
+{
+    const int numPixels = znccParams.width * znccParams.height;
+
+#pragma omp parallel for schedule(dynamic)
+    for (int idx = 0; idx < numPixels; idx++)
+    {
+        int x = idx % znccParams.width;
+        int y = idx / znccParams.width;
+
+        double maxZncc = -1.0;
+        int bestDisp = 0;
+
+        double mean1 = calculateMean(x, y, 0, leftImg, znccParams);
+
+        for (int d = 0; d < znccParams.maxDisp; d++)
+        {
+            double mean2 = calculateMean(x, y, d, rightImg, znccParams);
+
+            double znccVal = calculateZncc(x, y, d, mean1, mean2, leftImg, rightImg, znccParams);
+
+            if (znccVal > maxZncc)
+            {
+                maxZncc = znccVal;
+                bestDisp = d;
+            }
+        }
+
+        dispMap[idx] = static_cast<unsigned char>(bestDisp);
+    }
+}
+
+#ifdef USE_SIMD
+void zncc_simd(vector<unsigned char> &dispMap, const vector<unsigned char> &leftImg, const vector<unsigned char> &rightImg, const ZnccParams &znccParams)
+{
+    const int numPixels = znccParams.width * znccParams.height;
+
+#pragma omp parallel for
+    for (int idx = 0; idx < numPixels; idx++)
+    {
+        int x = idx % znccParams.width;
+        int y = idx / znccParams.width;
+
+        double maxZncc = -1.0;
+        int bestDisp = 0;
+
+        auto meanVals = vector<double>(znccParams.maxDisp);
+        auto znccVals = vector<double>(znccParams.maxDisp);
+
+// #pragma omp parallel for simd
+        for (int d = 0; d < znccParams.maxDisp; d++)
+        {
+            meanVals[d] = calculateMeanSimd(x, y, d, znccParams.width, znccParams.height, znccParams.winSize / 2, rightImg);
+        }
+
+// #pragma omp parallel for simd
+        for (int d = 0; d < znccParams.maxDisp; d++)
+        {
+            znccVals[d] = calculateZnccSimd(x, y, d, meanVals[0], meanVals[d], znccParams.width, znccParams.height, znccParams.winSize / 2, leftImg, rightImg);
+        }
+
+// #pragma omp parallel for simd
+        for (int d = 0; d < znccParams.maxDisp; d++)
+        {
+            if (znccVals[d] > maxZncc)
+            {
+                maxZncc = znccVals[d];
+                bestDisp = d;
+            }
+        }
+
+        dispMap[idx] = static_cast<unsigned char>(bestDisp);
+    }
+}
+#endif
+
+#ifndef USE_SIMD
+void zncc_simd(vector<unsigned char> &dispMap, const vector<unsigned char> &leftImg, const vector<unsigned char> &rightImg, const ZnccParams &znccParams)
+{
+    cout << "SIMD not enabled" << endl;
+}
+#endif
+
+// OpenCL ZNCC
+#ifdef USE_OCL
+void zncc_opencl(vector<unsigned char> &dispMap, const vector<unsigned char> &leftImg, const vector<unsigned char> &rightImg, const ZnccParams &znccParams)
 {
     try
     {
@@ -219,7 +185,7 @@ void zncc_opencl(const vector<unsigned char> &leftImg, const vector<unsigned cha
 
         // Get a list of devices on this platform
         vector<cl::Device> devices;
-        platforms[0].getDevices(CL_DEVICE_TYPE_ALL, &devices);
+        platforms[1].getDevices(CL_DEVICE_TYPE_ALL, &devices);
 
         // Create a context for the devices
         cl::Context context(devices);
@@ -231,7 +197,7 @@ void zncc_opencl(const vector<unsigned char> &leftImg, const vector<unsigned cha
         size_t inputSize = sizeof(unsigned char) * leftImg.size();
         cl::Buffer leftImgBuffer = cl::Buffer(context, CL_MEM_READ_ONLY, inputSize, NULL, NULL);
         cl::Buffer rightImgBuffer = cl::Buffer(context, CL_MEM_READ_ONLY, inputSize, NULL, NULL);
-        cl::Buffer disparityImgBuffer = cl::Buffer(context, CL_MEM_WRITE_ONLY, inputSize, NULL, NULL);
+        cl::Buffer dispMapBuffer = cl::Buffer(context, CL_MEM_WRITE_ONLY, inputSize, NULL, NULL);
 
         // Copy the input data to the input buffers
         queue.enqueueWriteBuffer(leftImgBuffer, CL_TRUE, 0, inputSize, &leftImg[0]);
@@ -255,19 +221,19 @@ void zncc_opencl(const vector<unsigned char> &leftImg, const vector<unsigned cha
         // Set the kernel arguments
         zncc_kernel.setArg(0, leftImgBuffer);
         zncc_kernel.setArg(1, rightImgBuffer);
-        zncc_kernel.setArg(2, disparityImgBuffer);
-        zncc_kernel.setArg(3, width);
-        zncc_kernel.setArg(4, height);
+        zncc_kernel.setArg(2, dispMapBuffer);
+        zncc_kernel.setArg(3, znccParams.width);
+        zncc_kernel.setArg(4, znccParams.height);
 
         // Execute the kernel
-        cl::NDRange global(width * height);
+        cl::NDRange global(znccParams.width * znccParams.height);
         // cl::NDRange local(WIN_SIZE * WIN_SIZE);
         queue.enqueueNDRangeKernel(zncc_kernel, cl::NullRange, global);
         // queue.finish();
 
         // Copy the output data back to the host
         // unsigned char *tmpDisparity;
-        queue.enqueueReadBuffer(disparityImgBuffer, CL_TRUE, 0, inputSize, &disparityImg[0]);
+        queue.enqueueReadBuffer(dispMapBuffer, CL_TRUE, 0, inputSize, &dispMap[0]);
     }
     catch (cl::Error error)
     {
@@ -275,159 +241,155 @@ void zncc_opencl(const vector<unsigned char> &leftImg, const vector<unsigned cha
     }
 }
 
-void zncc(const vector<unsigned char> &leftImg, const vector<unsigned char> &rightImg, vector<unsigned char> &disparityImg, int width, int height, ZnccMethod method)
+void zncc_opencl_opt(vector<unsigned char> &dispMap, const vector<unsigned char> &leftImg, const vector<unsigned char> &rightImg, const ZnccParams &znccParams)
 {
-    switch(method)
+    try
     {
-        case ZnccMethod::SINGLE_THREADED:
-            zncc_single(leftImg, rightImg, disparityImg, width, height);
-            break;
-        case ZnccMethod::MULTI_THREADED:
-            zncc_multi(leftImg, rightImg, disparityImg, width, height);
-            break;
-        case ZnccMethod::OPENMP:
-            zncc_openmp(leftImg, rightImg, disparityImg, width, height);
-            break;
-        case ZnccMethod::OPENCL:
-            zncc_opencl(leftImg, rightImg, disparityImg, width, height);
-            break;
+        // Query for platforms
+        vector<cl::Platform> platforms;
+        cl::Platform::get(&platforms);
+
+        // Get a list of devices on this platform
+        vector<cl::Device> devices;
+        platforms[1].getDevices(CL_DEVICE_TYPE_ALL, &devices);
+
+        // Create a context for the devices
+        cl::Context context(devices);
+
+        // Create a command−queue for the first device
+        cl::CommandQueue queue = cl::CommandQueue(context, devices[0]);
+
+        // Create OpenCL memory buffers
+        size_t inputSize = sizeof(unsigned char) * leftImg.size();
+        cl::Buffer leftImgBuffer = cl::Buffer(context, CL_MEM_READ_ONLY, inputSize, NULL, NULL);
+        cl::Buffer rightImgBuffer = cl::Buffer(context, CL_MEM_READ_ONLY, inputSize, NULL, NULL);
+        cl::Buffer dispMapBuffer = cl::Buffer(context, CL_MEM_WRITE_ONLY | CL_MEM_HOST_READ_ONLY, inputSize, NULL, NULL);
+
+        size_t intermediateSize = sizeof(float) * znccParams.maxDisp;
+        cl::Buffer meanValsBuffer = cl::Buffer(context, CL_MEM_READ_WRITE, intermediateSize, NULL, NULL);
+        cl::Buffer znccValsBuffer = cl::Buffer(context, CL_MEM_READ_WRITE, intermediateSize, NULL, NULL);
+
+        // Copy the input data to the input buffers
+        queue.enqueueWriteBuffer(leftImgBuffer, CL_TRUE, 0, inputSize, &leftImg[0]);
+        queue.enqueueWriteBuffer(rightImgBuffer, CL_TRUE, 0, inputSize, &rightImg[0]);
+
+        // Read the program source
+        ifstream sourceFile("kernels/zncc_opt_kernels.cl");
+        string sourceCode(istreambuf_iterator<char>(sourceFile), (istreambuf_iterator<char>()));
+        cl::Program::Sources source(1, make_pair(sourceCode.c_str(), sourceCode.length() + 1));
+
+        // Create the program from the source code
+        cl::Program program = cl::Program(context, source);
+
+        // Build the program for the devices
+        auto err = program.build(devices);
+        cout << get_cl_err(err) << endl;
+
+        // Create the kernel
+        cl::Kernel zncc_kernel(program, "zncc_kernel");
+
+        // Set the kernel arguments
+        zncc_kernel.setArg(0, leftImgBuffer);
+        zncc_kernel.setArg(1, rightImgBuffer);
+        zncc_kernel.setArg(2, dispMapBuffer);
+        zncc_kernel.setArg(3, meanValsBuffer);
+        zncc_kernel.setArg(4, znccValsBuffer);
+        zncc_kernel.setArg(5, znccParams.width);
+        zncc_kernel.setArg(6, znccParams.height);
+        zncc_kernel.setArg(7, znccParams.winSize);
+        zncc_kernel.setArg(8, znccParams.maxDisp);
+
+        // Execute the kernel
+        cl::NDRange global(znccParams.width * znccParams.height);
+        // cl::NDRange local(WIN_SIZE * WIN_SIZE);
+        queue.enqueueNDRangeKernel(zncc_kernel, cl::NullRange, global);
+        // queue.finish();
+
+        // Copy the output data back to the host
+        // unsigned char *tmpDisparity;
+        queue.enqueueReadBuffer(dispMapBuffer, CL_TRUE, 0, inputSize, &dispMap[0]);
     }
-    
-}
-
-vector<unsigned char> cross_check(const vector<unsigned char>& dispMapLeft, const vector<unsigned char>& dispMapRight, int width, int height)
-{
-    vector<unsigned char> result(width * height);
-    
-    // Loop over all pixels
-    for (int y = 0; y < height; y++)
+    catch (cl::Error error)
     {
-        for (int x = 0; x < width; x++)
-        {
-            int idx = y * width + x;
-            
-            // Get the disparities from both depth maps
-            int dispLeft = dispMapLeft[idx];
-            int dispRight = dispMapRight[idx];
-            
-            // Check if the disparities match
-            // if (x - dispLeft >= 0 && x - dispLeft < width && abs(dispRight - dispMapLeft[idx - dispLeft]) <= CC_THRESHOLD)
-            if(abs(dispRight - dispLeft) <= CC_THRESHOLD)
-            {
-                result[idx] = dispLeft;
-            }
-            else
-            {
-                result[idx] = 0;
-            }
-        }
-    }
-    
-    return result;
-}
-
-vector<unsigned char> occlusion_fill(const vector<unsigned char>& depthMap, int width, int height)
-{
-    vector<unsigned char> result(width * height);
-    
-    // Loop over all pixels
-    for (int y = 0; y < height; y++)
-    {
-        for (int x = 0; x < width; x++)
-        {
-            int idx = y * width + x;
-            
-            // Get the disparity value for this pixel
-            int disp = depthMap[idx];
-            
-            // If the disparity value is zero, this pixel is occluded
-            if (disp == 0)
-            {
-                // Search for the nearest non-occluded pixel in the same row
-                int left = x;
-                int right = x;
-                while (left >= 0 && depthMap[y * width + left] == 0)
-                {
-                    left--;
-                }
-                while (right < width && depthMap[y * width + right] == 0)
-                {
-                    right++;
-                }
-                
-                // Calculate a new disparity value as the average of the two nearest non-occluded pixels
-                auto idx_left = y * width + left;
-                auto idx_right = y * width + right;
-
-                int new_disp = (left >= 0 ? depthMap[idx_left] : right >= width ? 0 : depthMap[idx_right]);
-                if (right < width && left >= 0)
-                {
-                    new_disp = (depthMap[idx_left] + depthMap[idx_right]) / 2;
-                }
-                
-                // Clamp the new disparity value to the valid range
-                new_disp = max(0, min(MAX_DISP, new_disp));
-                
-                result[idx] = new_disp;
-            }
-            else
-            {
-                result[idx] = disp;
-            }
-        }
-    }
-    
-    return result;
-}
-
-void normalize(vector<unsigned char>& dispMap)
-{
-    for (auto &val : dispMap)
-    {
-        val = (unsigned char)((double)val / (double)MAX_DISP * 255.0);
+        cout << error.what() << ": " << get_cl_err(error.err()) << endl;
     }
 }
+#endif
 
-void zncc_pipeline(const vector<unsigned char> &imgLeft, const vector<unsigned char> &imgRight, vector<unsigned char> &dispMap, int width, int height, ZnccMethod method, bool crossCheck, bool occlusionFill)
+#ifndef USE_OCL
+void zncc_opencl(vector<unsigned char> &dispMap, const vector<unsigned char> &leftImg, const vector<unsigned char> &rightImg, const ZnccParams &znccParams)
 {
-    vector<unsigned char> dispMapLeft(width * height);
-    vector<unsigned char> dispMapRight(width * height);
-    vector<unsigned char> dispConsolidated(width * height);
-    vector<unsigned char> dispOC(width * height);
+    cout << "OpenCL not enabled" << endl;
+}
+#endif
+
+void zncc_cuda(vector<unsigned char> &dispMap, const vector<unsigned char> &leftImg, const vector<unsigned char> &rightImg, const ZnccParams &znccParams)
+{
+    // TODO: Implement CUDA ZNCC
+    cout << "CUDA not implemented" << endl;
+}
+
+// ZNCC wrapper function
+void zncc(vector<unsigned char> &dispMap, const vector<unsigned char> &leftImg, const vector<unsigned char> &rightImg, const ZnccParams &znccParams)
+{
+    switch (znccParams.method)
+    {
+    case ZnccMethod::SINGLE_THREADED:
+        zncc_single(dispMap, leftImg, rightImg, znccParams);
+        break;
+    case ZnccMethod::MULTI_THREADED:
+        zncc_multi(dispMap, leftImg, rightImg, znccParams);
+        break;
+    case ZnccMethod::OPENMP:
+        zncc_openmp(dispMap, leftImg, rightImg, znccParams);
+        break;
+    case ZnccMethod::SIMD:
+        zncc_simd(dispMap, leftImg, rightImg, znccParams);
+        break;
+    case ZnccMethod::OPENCL:
+        zncc_opencl(dispMap, leftImg, rightImg, znccParams);
+        break;
+    case ZnccMethod::OPENCL_OPT:
+        zncc_opencl_opt(dispMap, leftImg, rightImg, znccParams);
+        break;
+    case ZnccMethod::CUDA:
+        zncc_cuda(dispMap, leftImg, rightImg, znccParams);
+        break;
+    }
+}
+
+// ZNCC pipeline
+ZnccResult zncc_pipeline(const vector<unsigned char> &leftImg, const vector<unsigned char> &rightImg, const ZnccParams &znccParams)
+{
+    int numPixels = znccParams.width * znccParams.height;
+    ZnccResult znccResult;
+    znccResult.dispMapLeft = vector<unsigned char>(numPixels);
+    znccResult.dispMapRight = vector<unsigned char>(numPixels);
+
 
     // Compute the disparity map using ZNCC
     cout << "# ZNCC Left\n";
-    zncc(imgLeft, imgRight, dispMapLeft, width, height, method);
+    {
+        Timer timer;
 
-    if (crossCheck)
+        zncc(znccResult.dispMapLeft, leftImg, rightImg, znccParams);
+        
+    }
+
+    if (znccParams.withRight || znccParams.withCrossChecking)
     {
         cout << "# ZNCC right\n";
-        zncc(imgRight, imgLeft, dispMapRight, width, height, method);
+        zncc(znccResult.dispMapRight, rightImg, leftImg, znccParams);
+    }
 
-        // Cross-check the disparity map
-        cout << "# Cross-checkingt\n";
-        dispConsolidated = cross_check(dispMapLeft, dispMapRight, width, height);
-    }
-    else
-    {
-        dispConsolidated = dispMapLeft;
-    }
-    
-    if (occlusionFill)
-    {
-        // Fill occlusions
-        cout << "# Occlusion filling\n";
-        dispOC = occlusion_fill(dispConsolidated, width, height);
-    }
-    else
-    {
-        dispOC = dispConsolidated;
-    }
-    
+    // apply cross checking if enabled
+    znccResult.dispMapCC = znccParams.withCrossChecking ? crosscheck(znccResult.dispMapLeft, znccResult.dispMapRight, znccParams) : znccResult.dispMapLeft;
+
+    // apply occlusion filling if enabled
+    znccResult.dispMapOC = znccParams.withOcclusionFilling ? fillOcclusion(znccResult.dispMapCC, znccParams) : znccResult.dispMapCC;
+
     // Normalize the disparity map
-    cout << "# Normalization\n";
-    normalize(dispOC);
-    
-    // Copy the result to the output
-    dispMap = dispOC;
+    znccResult.dispMap = znccParams.withNormalization ? normalizeMap(znccResult.dispMapOC, znccParams) : znccResult.dispMapOC;
+
+    return znccResult;
 }

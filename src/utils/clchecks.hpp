@@ -1,5 +1,7 @@
 #pragma once
 
+#ifdef USE_OCL
+
 #define __CL_ENABLE_EXCEPTIONS
 
 #include <CL/cl.hpp>
@@ -15,3 +17,5 @@ void print_platform_info(cl_platform_id platform);
 void print_device_info(cl_device_id device);
 int clHelloWorld();
 int clVecAdd();
+
+#endif // USE_OCL

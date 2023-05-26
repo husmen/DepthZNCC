@@ -1,3 +1,5 @@
+#ifdef USE_OCL
+
 #include "clchecks.hpp"
 
 string get_cl_err(cl_int errCode)
@@ -26,6 +28,8 @@ string get_cl_err(cl_int errCode)
         os << "CL_INVALID_WORK_GROUP_SIZE (" << errCode << ")";
     else if (errCode == CL_INVALID_ARG_INDEX)
         os << "CL_INVALID_ARG_INDEX (" << errCode << ")";
+    else if (errCode == CL_INVALID_BUFFER_SIZE)
+        os << "CL_INVALID_BUFFER_SIZE (" << errCode << ")";
     else
         os << "UNKNOWN_ERROR (" << errCode << ")";
 
@@ -78,21 +82,29 @@ void print_device_info(cl_device_id device)
 
 int clHelloWorld()
 {
-        cout << "HelloWorld! (" <<  CL_SUCCESS << ")" << endl;
+    cout << "HelloWorld! (" <<  CL_SUCCESS << ")" << endl;
 
     try
     {
         cl_uint num_platforms;
-        cl_platform_id *platforms = new cl_platform_id[1];
-        cl_int err = clGetPlatformIDs(1, platforms, &num_platforms);
-        cout << get_cl_err(err) << " Got platforms! " << int(num_platforms) << endl;
-        print_platform_info(platforms[0]);
+        cl_platform_id *platforms = new cl_platform_id[3];
+        cl_int err = clGetPlatformIDs(3, platforms, &num_platforms);
+        cout << get_cl_err(err) << " Platforms found: " << int(num_platforms) << endl;
 
-        cl_uint num_devices;
-        cl_device_id *devices = new cl_device_id[1];
-        err = clGetDeviceIDs(platforms[0], CL_DEVICE_TYPE_ALL, 1, devices, &num_devices);
-        cout << get_cl_err(err) << " Got Devices! " << int(num_devices) << endl;
-        print_device_info(devices[0]);
+        for (int i = 0; i < num_platforms; i++)
+        {
+            print_platform_info(platforms[i]);
+            
+            cl_uint num_devices;
+            cl_device_id *devices = new cl_device_id[3];
+            err = clGetDeviceIDs(platforms[i], CL_DEVICE_TYPE_ALL, 3, devices, &num_devices);
+            cout << get_cl_err(err) << " Devices found: " << int(num_devices) << endl;
+
+            for (int j = 0; j < num_devices; j++)
+                print_device_info(devices[j]);
+        }
+
+        
     }
     catch (cl::Error error)
     {
@@ -179,3 +191,5 @@ int clVecAdd()
 
     return 0;
 }
+
+#endif
