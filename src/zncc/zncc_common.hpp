@@ -20,9 +20,11 @@ enum class ZnccMethod
     MULTI_THREADED,
     OPENMP,
     SIMD,
-    OPENCL_1,
-    OPENCL_2,
-    OPENCL_3,
+    OPENCL_NAIVE,
+    OPENCL_OPT1,
+    OPENCL_OPT2,
+    OPENCL_OPT3,
+    // OPENCL_PIPE,
     CUDA
 };
 
@@ -48,18 +50,20 @@ const map<ZnccMethod, string> ZnccString = {
     {ZnccMethod::MULTI_THREADED, "MULTI_THREADED"},
     {ZnccMethod::OPENMP, "OPENMP"},
     {ZnccMethod::SIMD, "SIMD"},
-    {ZnccMethod::OPENCL_1, "OPENCL_1"},
-    {ZnccMethod::OPENCL_2, "OPENCL_2"},
-    {ZnccMethod::OPENCL_3, "OPENCL_3"},
+    {ZnccMethod::OPENCL_NAIVE, "OPENCL_NAIVE"},
+    {ZnccMethod::OPENCL_OPT1, "OPENCL_OPT1"},
+    {ZnccMethod::OPENCL_OPT2, "OPENCL_OPT2"},
+    {ZnccMethod::OPENCL_OPT3, "OPENCL_OPT3"},
+    // {ZnccMethod::OPENCL_PIPE, "OPENCL_PIPE"},
     {ZnccMethod::CUDA, "CUDA"},
 };
 
 string ZnccMethodToString(ZnccMethod method);
 
-double calculateMean(int x, int y, int d, const vector<unsigned char> &img, const ZnccParams &znccParams);
+double calculateMean(int x, int y, const vector<unsigned char> &img, const ZnccParams &znccParams);
 double calculateZncc(int x, int y, int d, double mean1, double mean2, const vector<unsigned char> &img1, const vector<unsigned char> &img2, const ZnccParams &znccParams);
 
-double calculateMeanSimd(int x, int y, int d, int width, int height, int halfWinSize, const vector<unsigned char> &img);
+double calculateMeanSimd(int x, int y, int width, int height, int halfWinSize, const vector<unsigned char> &img);
 double calculateZnccSimd(int x, int y, int d, double mean1, double mean2, int width, int height, int halfWinSize, const vector<unsigned char> &img1, const vector<unsigned char> &img2);
 
 vector<unsigned char> crosscheck(const vector<unsigned char> &dispMapLeft, const vector<unsigned char> &dispMapRight, const ZnccParams &znccParams);
