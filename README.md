@@ -34,7 +34,7 @@ OpenCL implementation of Zero-mean Normalized Cross Correlation (ZNCC) - Project
 | OpenCL Optimized (GPU) | 2.2 | - | - |
 | OpenCL Optimized (APU) | 1.8 | - | - |
 | OpenCL Optimized (CPU) | DNR | - | - |
-| CUDA | - | - | - |
+| CUDA | 2.2 | - | - |
 [Benchmark results as runtime in seconds]
 
 ## OpenCL Platform/Device Info

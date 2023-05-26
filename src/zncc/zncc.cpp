@@ -164,9 +164,8 @@ void zncc_simd(vector<unsigned char> &dispMap, const vector<unsigned char> &left
         dispMap[idx] = static_cast<unsigned char>(bestDisp);
     }
 }
-#endif
 
-#ifndef USE_SIMD
+#else
 void zncc_simd(vector<unsigned char> &dispMap, const vector<unsigned char> &leftImg, const vector<unsigned char> &rightImg, const ZnccParams &znccParams)
 {
     cout << "SIMD not enabled" << endl;
@@ -175,25 +174,46 @@ void zncc_simd(vector<unsigned char> &dispMap, const vector<unsigned char> &left
 
 // OpenCL ZNCC
 #ifdef USE_OCL
-void zncc_opencl(vector<unsigned char> &dispMap, const vector<unsigned char> &leftImg, const vector<unsigned char> &rightImg, const ZnccParams &znccParams)
+
+tuple<cl::Context, cl::CommandQueue, cl::Program> configure_opencl(const char* kernel_name, int platform_id)
+{
+    // Query for platforms
+    vector<cl::Platform> platforms;
+    cl::Platform::get(&platforms);
+
+    // Get a list of devices on this platform
+    vector<cl::Device> devices;
+    platforms[platform_id].getDevices(CL_DEVICE_TYPE_ALL, &devices);
+    auto deviceName = devices[0].getInfo<CL_DEVICE_NAME>();
+    cout << "# Running OPENCL_2 on " << deviceName << endl;
+
+    // Create a context for the devices
+    cl::Context context(devices);
+
+    // Create a command−queue for the first device
+    cl::CommandQueue queue = cl::CommandQueue(context, devices[0]);
+
+    // Read the program source
+    ifstream sourceFile("kernels/" + string(kernel_name));
+    string sourceCode(istreambuf_iterator<char>(sourceFile), (istreambuf_iterator<char>()));
+    cl::Program::Sources source(1, make_pair(sourceCode.c_str(), sourceCode.length() + 1));
+
+    // Create the program from the source code
+    cl::Program program = cl::Program(context, source);
+
+    // Build the program for the devices
+    auto err = program.build(devices);
+    cout << get_cl_err(err) << endl;
+
+    return make_tuple(context, queue, program);
+}
+
+
+void zncc_opencl_1(vector<unsigned char> &dispMap, const vector<unsigned char> &leftImg, const vector<unsigned char> &rightImg, const ZnccParams &znccParams)
 {
     try
     {
-        // Query for platforms
-        vector<cl::Platform> platforms;
-        cl::Platform::get(&platforms);
-
-        // Get a list of devices on this platform
-        vector<cl::Device> devices;
-        platforms[znccParams.platformId].getDevices(CL_DEVICE_TYPE_ALL, &devices);
-        auto deviceName = devices[0].getInfo<CL_DEVICE_NAME>();
-        cout << "# Running OPENCL on " << deviceName << endl;
-
-        // Create a context for the devices
-        cl::Context context(devices);
-
-        // Create a command−queue for the first device
-        cl::CommandQueue queue = cl::CommandQueue(context, devices[0]);
+        auto [context, queue, program] = configure_opencl("zncc_kernels_1.cl", znccParams.platformId);
 
         // Create OpenCL memory buffers
         size_t inputSize = sizeof(unsigned char) * leftImg.size();
@@ -204,18 +224,6 @@ void zncc_opencl(vector<unsigned char> &dispMap, const vector<unsigned char> &le
         // Copy the input data to the input buffers
         queue.enqueueWriteBuffer(leftImgBuffer, CL_TRUE, 0, inputSize, &leftImg[0]);
         queue.enqueueWriteBuffer(rightImgBuffer, CL_TRUE, 0, inputSize, &rightImg[0]);
-
-        // Read the program source
-        ifstream sourceFile("kernels/zncc_kernels.cl");
-        string sourceCode(istreambuf_iterator<char>(sourceFile), (istreambuf_iterator<char>()));
-        cl::Program::Sources source(1, make_pair(sourceCode.c_str(), sourceCode.length() + 1));
-
-        // Create the program from the source code
-        cl::Program program = cl::Program(context, source);
-
-        // Build the program for the devices
-        auto err = program.build(devices);
-        cout << get_cl_err(err) << endl;
 
         // Create the kernel
         cl::Kernel zncc_kernel(program, "zncc_kernel");
@@ -243,25 +251,11 @@ void zncc_opencl(vector<unsigned char> &dispMap, const vector<unsigned char> &le
     }
 }
 
-void zncc_opencl_opt(vector<unsigned char> &dispMap, const vector<unsigned char> &leftImg, const vector<unsigned char> &rightImg, const ZnccParams &znccParams)
+void zncc_opencl_2(vector<unsigned char> &dispMap, const vector<unsigned char> &leftImg, const vector<unsigned char> &rightImg, const ZnccParams &znccParams)
 {
     try
     {
-        // Query for platforms
-        vector<cl::Platform> platforms;
-        cl::Platform::get(&platforms);
-
-        // Get a list of devices on this platform
-        vector<cl::Device> devices;
-        platforms[znccParams.platformId].getDevices(CL_DEVICE_TYPE_ALL, &devices);
-        auto deviceName = devices[0].getInfo<CL_DEVICE_NAME>();
-        cout << "# Running OPENCL_OPT on " << deviceName << endl;
-
-        // Create a context for the devices
-        cl::Context context(devices);
-
-        // Create a command−queue for the first device
-        cl::CommandQueue queue = cl::CommandQueue(context, devices[0]);
+        auto [context, queue, program] = configure_opencl("zncc_kernels_2.cl", znccParams.platformId);
 
         // Create OpenCL memory buffers
         size_t inputSize = sizeof(unsigned char) * leftImg.size();
@@ -276,18 +270,6 @@ void zncc_opencl_opt(vector<unsigned char> &dispMap, const vector<unsigned char>
         // Copy the input data to the input buffers
         queue.enqueueWriteBuffer(leftImgBuffer, CL_TRUE, 0, inputSize, &leftImg[0]);
         queue.enqueueWriteBuffer(rightImgBuffer, CL_TRUE, 0, inputSize, &rightImg[0]);
-
-        // Read the program source
-        ifstream sourceFile("kernels/zncc_opt_kernels.cl");
-        string sourceCode(istreambuf_iterator<char>(sourceFile), (istreambuf_iterator<char>()));
-        cl::Program::Sources source(1, make_pair(sourceCode.c_str(), sourceCode.length() + 1));
-
-        // Create the program from the source code
-        cl::Program program = cl::Program(context, source);
-
-        // Build the program for the devices
-        auto err = program.build(devices);
-        cout << get_cl_err(err) << endl;
 
         // Create the kernel
         cl::Kernel zncc_kernel(program, "zncc_kernel");
@@ -318,9 +300,79 @@ void zncc_opencl_opt(vector<unsigned char> &dispMap, const vector<unsigned char>
         cout << error.what() << ": " << get_cl_err(error.err()) << endl;
     }
 }
-#endif
 
-#ifndef USE_OCL
+void zncc_opencl_3(vector<unsigned char> &dispMap, const vector<unsigned char> &leftImg, const vector<unsigned char> &rightImg, const ZnccParams &znccParams)
+{
+    try
+    {
+        auto [context, queue, program] = configure_opencl("zncc_kernels_3.cl", znccParams.platformId);
+
+        // Create OpenCL memory buffers
+        size_t inputSize = sizeof(unsigned char) * leftImg.size();
+        cl::Buffer leftImgBuffer = cl::Buffer(context, CL_MEM_READ_ONLY, inputSize, NULL, NULL);
+        cl::Buffer rightImgBuffer = cl::Buffer(context, CL_MEM_READ_ONLY, inputSize, NULL, NULL);
+        cl::Buffer dispMapBuffer = cl::Buffer(context, CL_MEM_WRITE_ONLY | CL_MEM_HOST_READ_ONLY, inputSize, NULL, NULL);
+
+        // size_t intermediateSize = sizeof(float) * znccParams.maxDisp;
+        // cl::Buffer meanValsBuffer = cl::Buffer(context, CL_MEM_READ_WRITE, intermediateSize, NULL, NULL);
+        // cl::Buffer znccValsBuffer = cl::Buffer(context, CL_MEM_READ_WRITE, intermediateSize, NULL, NULL);
+
+        // Copy the input data to the input buffers
+        queue.enqueueWriteBuffer(leftImgBuffer, CL_TRUE, 0, inputSize, &leftImg[0]);
+        queue.enqueueWriteBuffer(rightImgBuffer, CL_TRUE, 0, inputSize, &rightImg[0]);
+
+        // cl::Pipe pipe(context, CL_MEM_READ_WRITE, sizeof(float), znccParams.maxDisp);
+
+
+        // Create the kernels and their arguments
+        cl::Kernel calculate_mean(program, "calculate_mean");
+        calculate_mean.setArg(0, rightImgBuffer);
+        calculate_mean.setArg(1, znccParams.width);
+        calculate_mean.setArg(2, znccParams.height);
+        calculate_mean.setArg(3, znccParams.winSize);
+        calculate_mean.setArg(4, znccParams.maxDisp);
+
+        cl::Kernel calculate_zncc(program, "calculate_zncc");
+        calculate_zncc.setArg(0, leftImgBuffer);
+        calculate_zncc.setArg(1, rightImgBuffer);
+        calculate_zncc.setArg(2, znccParams.width);
+        calculate_zncc.setArg(3, znccParams.height);
+        calculate_zncc.setArg(4, znccParams.winSize);
+        calculate_zncc.setArg(5, znccParams.maxDisp);
+
+        cl::Kernel zncc_kernel(program, "zncc_kernel");
+        zncc_kernel.setArg(0, dispMapBuffer);
+        zncc_kernel.setArg(1, znccParams.width);
+        zncc_kernel.setArg(2, znccParams.maxDisp);
+
+        // Execute the kernel
+        cl::NDRange global(znccParams.height);
+
+        // vector<int> max_local = {256, 1024, 8192};
+        // cl::NDRange local(max_local[znccParams.platformId]);
+        // while (global[0] % local[0] != 0)
+        // {
+        //     local = local[0] - 1;
+        // }
+        // cout << "work group size: " << local[0] << endl;
+
+        queue.enqueueNDRangeKernel(calculate_mean, cl::NullRange, global);
+        queue.enqueueNDRangeKernel(calculate_zncc, cl::NullRange, global);
+        queue.enqueueNDRangeKernel(zncc_kernel, cl::NullRange, global);
+        // queue.finish();
+
+        // Copy the output data back to the host
+        // unsigned char *tmpDisparity;
+        queue.enqueueReadBuffer(dispMapBuffer, CL_TRUE, 0, inputSize, &dispMap[0]);
+    }
+    catch (cl::Error error)
+    {
+        cout << error.what() << ": " << get_cl_err(error.err()) << endl;
+    }
+}
+
+#else
+
 void zncc_opencl(vector<unsigned char> &dispMap, const vector<unsigned char> &leftImg, const vector<unsigned char> &rightImg, const ZnccParams &znccParams)
 {
     cout << "OpenCL not enabled" << endl;
@@ -329,8 +381,11 @@ void zncc_opencl(vector<unsigned char> &dispMap, const vector<unsigned char> &le
 
 void zncc_cuda(vector<unsigned char> &dispMap, const vector<unsigned char> &leftImg, const vector<unsigned char> &rightImg, const ZnccParams &znccParams)
 {
-    // TODO: Implement CUDA ZNCC
-    cout << "CUDA not implemented" << endl;
+    #ifdef USE_CUDA
+    zncc_cuda_wrapper(&dispMap[0], &leftImg[0], &rightImg[0], znccParams.width, znccParams.height, znccParams.winSize, znccParams.maxDisp);
+    #else
+    cout << "# CUDA not enabled" << endl;
+    #endif
 }
 
 // ZNCC wrapper function
@@ -350,11 +405,14 @@ void zncc(vector<unsigned char> &dispMap, const vector<unsigned char> &leftImg, 
     case ZnccMethod::SIMD:
         zncc_simd(dispMap, leftImg, rightImg, znccParams);
         break;
-    case ZnccMethod::OPENCL:
-        zncc_opencl(dispMap, leftImg, rightImg, znccParams);
+    case ZnccMethod::OPENCL_1:
+        zncc_opencl_1(dispMap, leftImg, rightImg, znccParams);
         break;
-    case ZnccMethod::OPENCL_OPT:
-        zncc_opencl_opt(dispMap, leftImg, rightImg, znccParams);
+    case ZnccMethod::OPENCL_2:
+        zncc_opencl_2(dispMap, leftImg, rightImg, znccParams);
+        break;
+    case ZnccMethod::OPENCL_3:
+        zncc_opencl_3(dispMap, leftImg, rightImg, znccParams);
         break;
     case ZnccMethod::CUDA:
         zncc_cuda(dispMap, leftImg, rightImg, znccParams);

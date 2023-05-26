@@ -14,10 +14,10 @@ string get_cl_err(cl_int errCode)
         os << "CL_OUT_OF_RESOURCES (" << errCode << ")";
     else if (errCode == CL_OUT_OF_HOST_MEMORY)
         os << "CL_OUT_OF_HOST_MEMORY (" << errCode << ")";
+    else if (errCode == CL_BUILD_PROGRAM_FAILURE)
+        os << "CL_BUILD_PROGRAM_FAILURE (" << errCode << ")";
     else if (errCode == CL_INVALID_VALUE)
         os << "CL_INVALID_VALUE (" << errCode << ")";
-    else if (errCode == CL_OUT_OF_HOST_MEMORY)
-        os << "CL_OUT_OF_HOST_MEMORY (" << errCode << ")";
     else if (errCode == CL_PLATFORM_NOT_FOUND_KHR)
         os << "CL_PLATFORM_NOT_FOUND_KHR (" << errCode << ")";
     else if (errCode == CL_INVALID_COMMAND_QUEUE)

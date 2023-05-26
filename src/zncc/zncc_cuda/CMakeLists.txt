@@ -1,0 +1,3 @@
+add_library(zncc_cuda zncc_cuda.cu zncc_cuda.cuh)
+set_target_properties(zncc_cuda PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
+target_link_libraries(zncc_cuda)

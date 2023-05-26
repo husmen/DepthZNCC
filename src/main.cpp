@@ -62,7 +62,7 @@ int main(int argc, char **argv)
           << "\tGray size: " << img_right.dataGray.size() << "\n";
 
      // Run Grid Search for ZNCC Params
-     // for (auto method : {ZnccMethod::OPENCL}) //, ZnccMethod::OPENCL, ZnccMethod::MULTI_THREADED, ZnccMethod::OPENMP, ZnccMethod::SINGLE_THREADED
+     // for (auto method : {ZnccMethod::OPENCL_1}) //, ZnccMethod::OPENCL_1, ZnccMethod::MULTI_THREADED, ZnccMethod::OPENMP, ZnccMethod::SINGLE_THREADED
      // {
      //      for (auto resizeFactor : {1, 2, 4})
      //      {
@@ -88,20 +88,20 @@ int main(int argc, char **argv)
      auto occThresh = 16;
 
      // Run ZNCC for different OpenCL devices
-     for (auto platformId : {0, 1, 2}) // APU, GPU, CPU
-     {
-          for (auto method : {ZnccMethod::OPENCL, ZnccMethod::OPENCL_OPT})
-          {
-               auto znccParams = ZnccParams{static_cast<int>(img_left.width) / resizeFactor, static_cast<int>(img_left.height) / resizeFactor, maxDisp, winSize, ccThresh, occThresh, resizeFactor, true, true, true, true, method, platformId};     
-               auto result = run_zncc(img_left, img_right, znccParams);
-          }
-     }
+     // for (auto platformId : {0, 1, 2}) // APU, GPU, CPU
+     // {
+     //      for (auto method : {ZnccMethod::OPENCL_1, ZnccMethod::OPENCL_2})
+     //      {
+     //           auto znccParams = ZnccParams{static_cast<int>(img_left.width) / resizeFactor, static_cast<int>(img_left.height) / resizeFactor, maxDisp, winSize, ccThresh, occThresh, resizeFactor, true, true, true, true, method, platformId};     
+     //           auto result = run_zncc(img_left, img_right, znccParams);
+     //      }
+     // }
 
      // Run ZNCC with best params
-     // auto method = ZnccMethod::OPENCL_OPT;
-     // auto platformId = 1;
-     // auto znccParams = ZnccParams{static_cast<int>(img_left.width) / resizeFactor, static_cast<int>(img_left.height) / resizeFactor, maxDisp, winSize, ccThresh, occThresh, resizeFactor, true, true, true, true, method, platformId};
-     // auto result = run_zncc(img_left, img_right, znccParams);
+     auto method = ZnccMethod::OPENCL_1;
+     auto platformId = 1;
+     auto znccParams = ZnccParams{static_cast<int>(img_left.width) / resizeFactor, static_cast<int>(img_left.height) / resizeFactor, maxDisp, winSize, ccThresh, occThresh, resizeFactor, true, true, true, true, method, platformId};
+     auto result = run_zncc(img_left, img_right, znccParams);
 
      return 0;
 }

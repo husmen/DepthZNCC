@@ -20,8 +20,9 @@ enum class ZnccMethod
     MULTI_THREADED,
     OPENMP,
     SIMD,
-    OPENCL,
-    OPENCL_OPT,
+    OPENCL_1,
+    OPENCL_2,
+    OPENCL_3,
     CUDA
 };
 
@@ -47,8 +48,9 @@ const map<ZnccMethod, string> ZnccString = {
     {ZnccMethod::MULTI_THREADED, "MULTI_THREADED"},
     {ZnccMethod::OPENMP, "OPENMP"},
     {ZnccMethod::SIMD, "SIMD"},
-    {ZnccMethod::OPENCL, "OPENCL"},
-    {ZnccMethod::OPENCL_OPT, "OPENCL_OPT"},
+    {ZnccMethod::OPENCL_1, "OPENCL_1"},
+    {ZnccMethod::OPENCL_2, "OPENCL_2"},
+    {ZnccMethod::OPENCL_3, "OPENCL_3"},
     {ZnccMethod::CUDA, "CUDA"},
 };
 
