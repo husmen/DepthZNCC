@@ -15,6 +15,9 @@
       "architecture": {
         "value": "x64",
         "strategy": "external"
+      },
+      "cacheVariables": {
+        "CMAKE_CXX_STANDARD": "17"
       }
     },
     {
@@ -86,8 +89,12 @@
       "inherits": "windows-base",
       "hidden": true,
       "cacheVariables": {
-        "CMAKE_C_COMPILER": "nvcc.exe",
-        "CMAKE_CXX_COMPILER": "nvcc.exe"
+        "CMAKE_C_COMPILER": "cl.exe",
+        "CMAKE_CXX_COMPILER": "cl.exe",
+        "CMAKE_CUDA_COMPILER": "nvcc.exe",
+        "CMAKE_CUDA_HOST_COMPILER": "cl.exe",
+        "CMAKE_CUDA_STANDARD": "17",
+        "CMAKE_CUDA_ARCHITECTURES": "86"
       }
     },
     {
@@ -128,6 +135,26 @@
     },
     {
       "name": "gcc-x64-release",
+      "displayName": "GCC x64 Release",
+      "inherits": "unix-base",
+      "cacheVariables": {
+        "CMAKE_C_COMPILER": "gcc",
+        "CMAKE_CXX_COMPILER": "g++",
+        "CMAKE_BUILD_TYPE": "Release"
+      }
+    },
+    {
+      "name": "nvcc-x64-debug",
+      "displayName": "GCC x64 Debug",
+      "inherits": "unix-base",
+      "cacheVariables": {
+        "CMAKE_C_COMPILER": "gcc",
+        "CMAKE_CXX_COMPILER": "g++",
+        "CMAKE_BUILD_TYPE": "Debug"
+      }
+    },
+    {
+      "name": "nvcc-x64-release",
       "displayName": "GCC x64 Release",
       "inherits": "unix-base",
       "cacheVariables": {

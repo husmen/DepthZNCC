@@ -3,6 +3,8 @@
 #include "utils/clchecks.hpp"
 #endif
 #include <filesystem>
+#include <iostream>
+#include <fstream>
 #include "utils/datatools.hpp"
 #include "zncc/zncc.hpp"
 
@@ -26,18 +28,38 @@ void printHelp(int argc, char **argv)
 ZnccResult run_zncc(const Image &leftImg, const Image &rightImg, ZnccParams znccParams)
 {
      Timer timer;
-     auto methodStr = ZnccMethodToString(znccParams.method);
      auto leftImg_ = znccParams.resizeFactor != 1 ? downsample(leftImg.dataGray, leftImg.width, leftImg.height, znccParams.resizeFactor) : leftImg.dataGray;
      auto rightImg_ = znccParams.resizeFactor != 1 ? downsample(rightImg.dataGray, rightImg.width, rightImg.height, znccParams.resizeFactor) : rightImg.dataGray;
 
-     cout << "Running ZNCC with method " << methodStr << "\n";
+     cout << "Running ZNCC with method " << ZnccMethodToString(znccParams.method) << "\n";
      auto result = zncc_pipeline(leftImg_, rightImg_, znccParams);
-
-     string filename = "./data/disp_zncc_" + methodStr + "_" + to_string(znccParams.resizeFactor) + "_" + to_string(znccParams.winSize) + "_" + to_string(znccParams.maxDisp) + "_" + to_string(znccParams.ccThresh) + ".png";
-     saveImage(filename, result.dispMap, znccParams.width, znccParams.height);
-
      return result;
 }
+
+void run_post_proc(ZnccResult &result, ZnccParams &params)
+{
+     post_proc_pipeline(result, params);
+}
+
+void run_logger(ZnccResult &result, ZnccParams &params, ofstream &csv_log)
+{
+     auto methodStr = ZnccMethodToString(params.method);
+     auto filename_suffix = to_string(params.resizeFactor) + "_" + to_string(params.winSize) + "_" + to_string(params.maxDisp) + "_" + to_string(params.ccThresh) + "_" + to_string(params.platformId) + ".png";
+
+     auto filename = "./data/" + methodStr + "_disp_" + filename_suffix;
+     saveImage(filename, result.dispMap, params.width, params.height);
+
+     filename = "./data/" + methodStr + "_left_" + filename_suffix;
+     saveImage(filename, result.dispMapLeft, params.width, params.height);
+
+     filename = "./data/" + methodStr + "_right_" + filename_suffix;
+     saveImage(filename, result.dispMapRight, params.width, params.height);
+
+     csv_log << methodStr << "," << params.platformId << "," << params.resizeFactor << "," << params.winSize << "," << params.maxDisp << "," << params.ccThresh << "," << params.occThresh << "," << to_string(result.znccTime) << "," << to_string(result.postProcTime) << "\n";
+     csv_log.flush();
+}
+
+
 
 int main(int argc, char **argv)
 {
@@ -61,34 +83,66 @@ int main(int argc, char **argv)
           << "\tRGB size: " << img_right.dataRgb.size() << "\n"
           << "\tGray size: " << img_right.dataGray.size() << "\n";
 
+     ofstream csv_log;
+     csv_log.open("./data/log.csv", ios::out | ios::app);
+
+     if(filesystem::is_empty("./data/log.csv"))
+          csv_log << "method,platformId,resizeFactor,winSize,maxDisp,ccThresh,occThresh,znccTime,postprocTime\n";
+
      // Run Grid Search for ZNCC Params
-     // for (auto method : {ZnccMethod::OPENCL}) //, ZnccMethod::OPENCL, ZnccMethod::MULTI_THREADED, ZnccMethod::OPENMP, ZnccMethod::SINGLE_THREADED
+     // for (auto method : {ZnccMethod::MULTI_THREADED, ZnccMethod::OPENMP, ZnccMethod::SIMD, ZnccMethod::OPENCL, ZnccMethod::CUDA})
+     for (auto method : {ZnccMethod::OPENCL})//, ZnccMethod::OPENCL, ZnccMethod::SIMD, ZnccMethod::MULTI_THREADED})
+     {
+          for (auto platformId : {1})
+          {
+               for (auto resizeFactor : {2})
+               {
+                    for (auto winSize : {15, 25, 35})
+                    {
+                         for (auto maxDisp : {32, 64, 128})
+                         {
+                              auto znccParams = ZnccParams{static_cast<int>(img_left.width) / resizeFactor, static_cast<int>(img_left.height) / resizeFactor, maxDisp, winSize, 0, 0, resizeFactor, true, true, true, true, method, platformId};
+                              auto result = run_zncc(img_left, img_right, znccParams);
+                              for (auto ccThresh : {maxDisp / 4})
+                              {
+                                   for (auto occThresh : {ccThresh / 2})
+                                   {
+                                        znccParams.ccThresh = ccThresh;
+                                        znccParams.occThresh = occThresh;
+                                        run_post_proc(result, znccParams);
+                                        run_logger(result, znccParams, csv_log);
+                                   }
+                              }
+                         }
+                    }
+               }
+          }
+     }
+
+     csv_log.close();
+
+     // ZNCC best params
+     // auto resizeFactor = 1;
+     // auto winSize = 9;
+     // auto maxDisp = 32;
+     // auto ccThresh = 4;
+     // auto occThresh = 24;
+
+     // Run ZNCC for different OpenCL devices
+     // for (auto platformId : {0, 1, 2}) // APU, GPU, CPU
      // {
-     //      for (auto resizeFactor : {1, 2, 4})
+     //      for (auto method : {ZnccMethod::OPENCL_1, ZnccMethod::OPENCL_2})
      //      {
-     //           for (auto winSize : {9, 17, 33})
-     //           {
-     //                for (auto maxDisp : {16, 32, 64})
-     //                {
-     //                     for (auto ccThresh : {maxDisp / 2, maxDisp, maxDisp * 2})
-     //                     {
-     //                          ZnccParams znccParams = {img_left.width / resizeFactor, img_left.height / resizeFactor, maxDisp, winSize, ccThresh, ccThresh / 2, resizeFactor, true, true, true, true, method};
-     //                          auto result = run_zncc(img_left, img_right, znccParams);
-     //                     }
-     //                }
-     //           }
+     //           auto znccParams = ZnccParams{static_cast<int>(img_left.width) / resizeFactor, static_cast<int>(img_left.height) / resizeFactor, maxDisp, winSize, ccThresh, occThresh, resizeFactor, true, true, true, true, method, platformId};
+     //           auto result = run_zncc(img_left, img_right, znccParams);
      //      }
      // }
 
-     // Run ZNCC
-     auto method = ZnccMethod::OPENCL_OPT;
-     auto resizeFactor = 1;
-     auto winSize = 9;
-     auto maxDisp = 32;
-     auto ccThresh = 32;
-     auto occThresh = 16;
-     ZnccParams znccParams = {static_cast<int>(img_left.width) / resizeFactor, static_cast<int>(img_left.height) / resizeFactor, maxDisp, winSize, ccThresh, occThresh, resizeFactor, true, true, true, true, method};
-     auto result = run_zncc(img_left, img_right, znccParams);
+     // Run ZNCC with best params
+     // auto method = ZnccMethod::OPENCL_1;
+     // auto platformId = 1;
+     // auto znccParams = ZnccParams{static_cast<int>(img_left.width) / resizeFactor, static_cast<int>(img_left.height) / resizeFactor, maxDisp, winSize, ccThresh, occThresh, resizeFactor, true, true, false, true, method, platformId};
+     // auto result = run_zncc(img_left, img_right, znccParams);
 
      return 0;
 }

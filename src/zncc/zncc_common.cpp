@@ -6,7 +6,7 @@ string ZnccMethodToString(ZnccMethod method)
     return it != ZnccString.end() ? it->second : "unknown";	
 }
 
-double calculateMean(int x, int y, int d, const vector<unsigned char> &img, const ZnccParams &znccParams)
+double calculateMean(int x, int y, const vector<unsigned char> &img, const ZnccParams &znccParams)
 {
     const int numPixels = znccParams.winSize * znccParams.winSize;
     const int halfWinSize = znccParams.winSize / 2;
@@ -15,19 +15,18 @@ double calculateMean(int x, int y, int d, const vector<unsigned char> &img, cons
 
     for (int idx = 0; idx < numPixels; idx++)
     {
+        // offset from center pixel
         int i = idx % znccParams.winSize - halfWinSize;
         int j = idx / znccParams.winSize - halfWinSize;
 
+        // coordinates of neighbor pixel
         int xj = x + i;
         int yj = y + j;
+
         if (xj >= 0 && xj < znccParams.width && yj >= 0 && yj < znccParams.height)
         {
-            int xjd = xj - d;
-            if (xjd >= 0 && xjd < znccParams.width)
-            {
-                sum += img[yj * znccParams.width + xjd];
-                count++;
-            }
+            sum += img[yj * znccParams.width + xj];
+            count++;
         }
     }
 
@@ -66,12 +65,12 @@ double calculateZncc(int x, int y, int d, double mean1, double mean2, const vect
 }
 
 // #pragma omp declare simd
-double calculateMeanSimd(int x, int y, int d, int width, int height, int halfWinSize, const vector<unsigned char> &img)
+double calculateMeanSimd(int x, int y, int width, int height, int halfWinSize, const vector<unsigned char> &img)
 {
-    int yy_0 = max(d, y - halfWinSize);
-    int yy_1 = min(height - d, y + halfWinSize);
-    int xx_0 = max(d, x - halfWinSize);
-    int xx_1 = min(width - d, x + halfWinSize);
+    int yy_0 = max(0, y - halfWinSize);
+    int yy_1 = min(height, y + halfWinSize + 1);
+    int xx_0 = max(0, x - halfWinSize);
+    int xx_1 = min(width, x + halfWinSize + 1);
 
     double sum = 0.0;
 #ifdef USE_SIMD
@@ -81,7 +80,7 @@ double calculateMeanSimd(int x, int y, int d, int width, int height, int halfWin
     {
         for (int xx = xx_0; xx < xx_1; xx++)
         {
-            sum += img[yy * width + xx - d];
+            sum += img[yy * width + xx];
         }
     }
 
@@ -92,10 +91,10 @@ double calculateMeanSimd(int x, int y, int d, int width, int height, int halfWin
 // #pragma omp declare simd
 double calculateZnccSimd(int x, int y, int d, double mean1, double mean2, int width, int height, int halfWinSize, const vector<unsigned char> &img1, const vector<unsigned char> &img2)
 {
-    int yy_0 = max(d, y - halfWinSize);
-    int yy_1 = min(height - d, y + halfWinSize);
+    int yy_0 = max(0, y - halfWinSize);
+    int yy_1 = min(height, y + halfWinSize + 1);
     int xx_0 = max(d, x - halfWinSize);
-    int xx_1 = min(width - d, x + halfWinSize);
+    int xx_1 = min(width - d, x + halfWinSize + 1);
 
     double num = 0.0;
     double denom1 = 0.0;
@@ -126,6 +125,7 @@ vector<unsigned char> crosscheck(const vector<unsigned char> &dispMapLeft, const
     vector<unsigned char> result(dispMapLeft);
 
     // Loop over all pixels
+#pragma omp parallel for schedule(dynamic)
     for (int idx = 0; idx < znccParams.width * znccParams.height; idx++)
     {
         int y = idx / znccParams.width;
@@ -133,7 +133,9 @@ vector<unsigned char> crosscheck(const vector<unsigned char> &dispMapLeft, const
 
         // Get the disparities from both depth maps
         int dispLeft = dispMapLeft[idx];
-        int dispRight = dispMapRight[idx];
+        if (idx - dispLeft < 0)
+            continue;
+        int dispRight = dispMapRight[idx - dispLeft];
 
         // Check if the disparities match
         // if (x - dispLeft >= 0 && x - dispLeft < width && abs(dispRight - dispMapLeft[idx - dispLeft]) <= CC_THRESHOLD)
@@ -152,6 +154,7 @@ vector<unsigned char> fillOcclusion(const vector<unsigned char> &dispMap, const 
     vector<unsigned char> result(dispMap);
 
     // Loop over all pixels
+#pragma omp parallel for schedule(dynamic)
     for (int idx = 0; idx < znccParams.width * znccParams.height; idx++)
     {
         int y = idx / znccParams.width;
@@ -195,10 +198,16 @@ vector<unsigned char> normalizeMap(const vector<unsigned char> &dispMap, const Z
     cout << "## Map Normalization\n";
     vector<unsigned char> normalizedMap = dispMap;
 
-    for (auto &val : normalizedMap)
+#pragma omp parallel for schedule(dynamic)
+    for (int idx = 0; idx < znccParams.width * znccParams.height; idx++)
     {
-        val = static_cast<unsigned char>(val * 255.0 / znccParams.maxDisp);
+        normalizedMap[idx] = static_cast<unsigned char>(dispMap[idx] * 255.0 / znccParams.maxDisp);
     }
+
+    // for (auto &val : normalizedMap)
+    // {
+    //     val = static_cast<unsigned char>(val * 255.0 / znccParams.maxDisp);
+    // }
 
     return normalizedMap;
 }

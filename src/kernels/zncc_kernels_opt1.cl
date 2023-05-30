@@ -63,6 +63,8 @@ __kernel void zncc_kernel(global const unsigned char* leftImg,
     double maxZncc = -1.0;
     int bestDisp = 0;
 
+    double meanVals_0 = calculateMean(x, y, 0, width, height, winSize / 2, leftImg);
+
     for (int d = 0; d < maxDisp; d++)
     {
         meanVals[d] = calculateMean(x, y, d, width, height, winSize / 2, rightImg);
@@ -70,7 +72,7 @@ __kernel void zncc_kernel(global const unsigned char* leftImg,
 
     for (int d = 0; d < maxDisp; d++)
     {
-        znccVals[d] = calculateZncc(x, y, d, meanVals[0], meanVals[d], width, height, winSize / 2, leftImg, rightImg);
+        znccVals[d] = calculateZncc(x, y, d, meanVals_0, meanVals[d], width, height, winSize / 2, leftImg, rightImg);
     }
 
     for (int d = 0; d < maxDisp; d++)
@@ -83,4 +85,4 @@ __kernel void zncc_kernel(global const unsigned char* leftImg,
     }
 
     disparityImg[idx] = (unsigned char)bestDisp;
-    }
+}
